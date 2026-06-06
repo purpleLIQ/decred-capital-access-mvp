@@ -1,3 +1,4 @@
+import { applyBps, protocolConfig } from "./protocol-config";
 import type { MarketSnapshot, Quote, RiskLevel } from "./types";
 
 export function calculateLtvBps(borrowAmount: number, collateralUsd: number): number {
@@ -9,9 +10,9 @@ export function calculateLtvBps(borrowAmount: number, collateralUsd: number): nu
 }
 
 export function classifyRisk(ltvBps: number): RiskLevel {
-  if (ltvBps >= 7000) return "liquidation";
-  if (ltvBps >= 6000) return "warning";
-  if (ltvBps >= 4500) return "watch";
+  if (ltvBps >= protocolConfig.liquidationLtvBps) return "liquidation";
+  if (ltvBps >= protocolConfig.warningLtvBps) return "warning";
+  if (ltvBps >= protocolConfig.watchLtvBps) return "watch";
   return "healthy";
 }
 
@@ -19,18 +20,25 @@ export function formatBps(bps: number): string {
   return `${(bps / 100).toFixed(2)}%`;
 }
 
-export function blendPrices(prices: number[]): { price: number; warnings: string[] } {
+export function blendPrices(prices: number[]): { price: number; sourceCount: number; warnings: string[] } {
   const usable = prices.filter((price) => Number.isFinite(price) && price > 0);
   if (usable.length === 0) {
-    return { price: 12.13, warnings: ["Using demo fallback DCR price because no live source responded."] };
+    return {
+      price: protocolConfig.fallbackDcrUsd,
+      sourceCount: 0,
+      warnings: ["Using demo fallback DCR price because no live source responded."],
+    };
   }
 
   const sorted = usable.toSorted((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
-  const divergent = sorted.some((price) => Math.abs(price - median) / median > 0.08);
+  const divergent = sorted.some(
+    (price) => Math.abs(price - median) / median > protocolConfig.maxPriceDivergenceBps / 10000,
+  );
 
   return {
     price: Number(median.toFixed(4)),
+    sourceCount: usable.length,
     warnings: divergent
       ? ["One or more price sources diverged by more than 8%; operator review is required."]
       : [],
@@ -45,17 +53,20 @@ export function buildQuote(input: {
 }): Quote {
   const collateralUsd = Number((input.collateralDcr * input.market.dcrUsd).toFixed(2));
   const ltvBps = calculateLtvBps(input.borrowAmount, collateralUsd);
-  const maxBorrowAt35Ltv = Number((collateralUsd * 0.35).toFixed(2));
+  const maxBorrowAtTargetLtv = Number((collateralUsd * (protocolConfig.targetLtvBps / 10000)).toFixed(2));
   const warnings: string[] = [];
 
-  if (ltvBps > 3500) {
+  if (ltvBps > protocolConfig.targetLtvBps) {
     warnings.push("This quote is above the 35% demo LTV target.");
   }
   if (input.market.dcrdexStableBookEmpty) {
     warnings.push("DCRDEX stablecoin liquidity is thin, so liquidation remains manual in v1.");
   }
-  if (input.borrowAsset !== "USDC") {
+  if (input.borrowAsset !== protocolConfig.recommendedBorrowAsset) {
     warnings.push("USDC is the recommended demo borrow asset; other assets are roadmap items.");
+  }
+  if (!isOracleHealthy(input.market)) {
+    warnings.push("Oracle health is degraded; keep this quote in demo mode until pricing is reviewed.");
   }
 
   return {
@@ -65,14 +76,18 @@ export function buildQuote(input: {
     dcrUsd: input.market.dcrUsd,
     collateralUsd,
     ltvBps,
-    maxBorrowAt35Ltv,
-    liquidationThresholdBps: 7000,
-    originationFee: Number((input.borrowAmount * 0.01).toFixed(2)),
-    estimatedAprBps: 1450,
+    maxBorrowAt35Ltv: maxBorrowAtTargetLtv,
+    liquidationThresholdBps: protocolConfig.liquidationLtvBps,
+    originationFee: applyBps(input.borrowAmount, protocolConfig.originationFeeBps),
+    estimatedAprBps: protocolConfig.estimatedAprBps,
     warnings,
   };
 }
 
 export function isOracleHealthy(market: MarketSnapshot): boolean {
-  return !market.stale && market.sourceCount >= 2 && market.warnings.length < 3;
+  return (
+    !market.stale &&
+    market.sourceCount >= protocolConfig.minLivePriceSources &&
+    market.warnings.length <= protocolConfig.maxOracleWarningsForHealthy
+  );
 }
