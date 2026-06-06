@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit": "npm audit --audit-level=moderate",
-    "verify": "npm run audit && npm test && npm run lint && npm run build",
+    "verify": "node scripts/verify.mjs",
     "demo": "next dev"
   },
   "dependencies": {
@@ -33,5 +33,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
   }
 }
