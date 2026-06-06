@@ -3,7 +3,8 @@ import path from "path";
 import initSqlJs, { type Database, type SqlJsStatic, type SqlValue } from "sql.js";
 import { decredAdapter } from "./adapters/decred-adapter";
 import { demoEvents, demoLoans } from "./fixtures";
-import type { Loan, LoanEvent, LoanStatus } from "./types";
+import { protocolConfig } from "./protocol-config";
+import type { Loan, LoanEvent, LoanStatus, Quote } from "./types";
 
 const dataDir = path.join(process.cwd(), "data");
 const dbPath = path.join(dataDir, "demo.sqlite");
@@ -36,14 +37,13 @@ export async function createLoan(input: {
   collateralDcr: number;
   borrowAmount: number;
   borrowAsset: Loan["borrowAsset"];
+  quote: Quote;
 }): Promise<Loan> {
   const db = await getDb();
   const now = new Date().toISOString();
   const id = `loan_${crypto.randomUUID()}`;
   const ref = `DCR-${Math.floor(1000 + Math.random() * 9000)}`;
   const escrow = decredAdapter.createDemoEscrow(ref);
-  const collateralUsd = Number((input.collateralDcr * 12.13).toFixed(2));
-  const ltv = Math.round((input.borrowAmount / collateralUsd) * 10000);
   const loan: Loan = {
     id,
     ref,
@@ -51,13 +51,13 @@ export async function createLoan(input: {
     lenderName: "Demo treasury",
     status: "awaiting_collateral",
     collateralDcr: input.collateralDcr,
-    collateralUsd,
+    collateralUsd: input.quote.collateralUsd,
     borrowAsset: input.borrowAsset,
     borrowAmount: input.borrowAmount,
-    initialLtvBps: ltv,
-    currentLtvBps: ltv,
-    aprBps: 1450,
-    termDays: 30,
+    initialLtvBps: input.quote.ltvBps,
+    currentLtvBps: input.quote.ltvBps,
+    aprBps: input.quote.estimatedAprBps,
+    termDays: protocolConfig.defaultTermDays,
     escrowAddress: escrow.address,
     redeemScript: escrow.redeemScript,
     borrowerPubkey: `02borrower-${ref}`,
@@ -66,7 +66,7 @@ export async function createLoan(input: {
     depositTxid: null,
     payoutTxid: null,
     repaymentTxid: null,
-    dueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    dueAt: new Date(Date.now() + protocolConfig.defaultTermDays * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: now,
     updatedAt: now,
     ticketProofStatus: "not_used",
@@ -77,7 +77,7 @@ export async function createLoan(input: {
     id: `evt_${crypto.randomUUID()}`,
     loanId: loan.id,
     type: "loan_created",
-    message: "Demo loan created with a 2-of-3 Decred escrow preview.",
+    message: `Demo loan created with ${input.quote.originationFee.toFixed(2)} ${input.borrowAsset} simulated platform fee and a 2-of-3 Decred escrow preview.`,
     actor: "system",
     createdAt: now,
   });
