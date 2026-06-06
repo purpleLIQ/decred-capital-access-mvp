@@ -1,32 +1,23 @@
-import { spawnSync } from 'node:child_process';
-
-const isWindows = process.platform === 'win32';
-const npmCommand = isWindows ? 'npm.cmd' : 'npm';
+import { execSync } from 'node:child_process';
 
 const steps = [
-  ['audit'],
-  ['test'],
-  ['run', 'lint'],
-  ['run', 'build'],
+  'npm run audit',
+  'npm test',
+  'npm run lint',
+  'npm run build',
 ];
 
-for (const args of steps) {
-  const label = `npm ${args.join(' ')}`;
-  console.log(`\n> ${label}`);
-  const result = spawnSync(npmCommand, args, {
-    stdio: 'inherit',
-    shell: false,
-  });
-
-  if (result.error) {
-    console.error(`\n${label} failed to start:`);
-    console.error(result.error);
-    process.exit(1);
-  }
-
-  if (result.status !== 0) {
-    console.error(`\n${label} failed with exit code ${result.status}.`);
-    process.exit(result.status ?? 1);
+for (const command of steps) {
+  console.log(`\n> ${command}`);
+  try {
+    execSync(command, {
+      stdio: 'inherit',
+      shell: true,
+    });
+  } catch (error) {
+    const status = typeof error.status === 'number' ? error.status : 1;
+    console.error(`\n${command} failed with exit code ${status}.`);
+    process.exit(status);
   }
 }
 
