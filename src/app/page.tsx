@@ -1,5 +1,5 @@
-import { DemoConsole } from "@/components/demo-console";
+import { BorrowFlow } from "@/components/borrow-flow";
 
 export default function Home() {
-  return <DemoConsole />;
+  return <BorrowFlow />;
 }
