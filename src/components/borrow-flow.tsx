@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   BarChart3,
@@ -64,7 +63,6 @@ export function BorrowFlow() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh().catch(() => setNotice("Demo data could not load. Try refreshing the page."));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function clearLiveQuote() {
@@ -160,7 +158,7 @@ export function BorrowFlow() {
         <div className="absolute right-[-12rem] top-40 h-[28rem] w-[28rem] rounded-full bg-[#2ed6a1]/20 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4 rounded-2xl border border-[#70cbff]/15 bg-[#091440]/70 px-4 py-3 shadow-2xl shadow-black/25 backdrop-blur md:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#2970ff] shadow-lg shadow-[#2970ff]/30">
@@ -182,20 +180,20 @@ export function BorrowFlow() {
           </Link>
         </header>
 
-        <section className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[0.88fr_1.12fr] lg:py-14">
-          <div className="max-w-2xl">
+        <section className="grid flex-1 items-start gap-8 pt-7 pb-8 lg:grid-cols-[0.88fr_1.12fr] lg:pt-10">
+          <div className="max-w-2xl pt-2 lg:pt-28 xl:pt-32">
             <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#2ed6a1]/30 bg-[#2ed6a1]/10 px-3 py-1 text-sm font-medium text-[#9bf0d6]">
               <ShieldCheck className="h-4 w-4 shrink-0" />
               <span className="truncate">Demo mode. No mainnet funds.</span>
             </div>
-            <h1 className="mt-6 text-5xl font-semibold tracking-[-0.06em] text-white sm:text-6xl lg:text-7xl">
+            <h1 className="mt-5 text-5xl font-semibold tracking-[-0.06em] text-white sm:text-6xl lg:text-6xl xl:text-7xl">
               Borrow USDC. Keep your DCR.
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/68">
+            <p className="mt-5 max-w-xl text-lg leading-8 text-white/68">
               Pick a target LTV, adjust either field, and review the loan math before escrow steps begin.
             </p>
 
-            <div className="mt-8 rounded-2xl border border-[#70cbff]/15 bg-[#091440]/65 p-4 font-mono text-xs text-[#9bdfff] shadow-xl shadow-black/20" id="market">
+            <div className="mt-7 rounded-2xl border border-[#70cbff]/15 bg-[#091440]/65 p-4 font-mono text-xs text-[#9bdfff] shadow-xl shadow-black/20" id="market">
               <div className="flex items-center gap-2 border-b border-[#70cbff]/10 pb-3 text-[#2ed6a1]">
                 <Terminal className="h-4 w-4" />
                 <span>desk://decred/capital-access</span>
@@ -208,7 +206,7 @@ export function BorrowFlow() {
             </div>
           </div>
 
-          <section id="borrow" className="min-w-0 rounded-[2rem] border border-[#70cbff]/20 bg-[#edf7f4] p-2 text-[#091440] shadow-2xl shadow-black/35 sm:p-3">
+          <section id="borrow" className="min-w-0 rounded-[2rem] border border-[#70cbff]/20 bg-[#edf7f4] p-2 text-[#091440] shadow-2xl shadow-black/35 sm:p-3 lg:self-start">
             <div className="overflow-hidden rounded-[1.5rem] border border-[#dbe7e2] bg-white">
               <div className="flex items-center justify-between border-b border-[#dbe7e2] bg-[#f7faf9] px-4 py-3 sm:px-5">
                 <div className="min-w-0">
@@ -340,8 +338,15 @@ function LtvMeter({ quote, targetLtvBps, onChange, onSetCollateral }: { quote: Q
         <span className="text-center">35% target</span>
         <span className="text-right">70% call</span>
       </div>
-      <button className="mt-3 text-xs font-semibold text-[#2970ff] hover:text-[#1d5fe8]" onClick={onSetCollateral} type="button">
-        Adjust DCR collateral to keep this LTV
+      <button
+        className="mt-3 inline-flex h-9 items-center gap-2 rounded-full border border-[#2970ff]/35 bg-[#eef4ff] px-3 text-xs font-semibold text-[#2970ff] shadow-sm transition hover:border-[#2970ff] hover:bg-white hover:text-[#1d5fe8]"
+        onClick={onSetCollateral}
+        type="button"
+      >
+        <span className="relative h-4 w-7 rounded-full bg-[#2970ff]/20">
+          <span className="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-[#2970ff] shadow-sm" />
+        </span>
+        Adjust DCR collateral
       </button>
     </div>
   );
