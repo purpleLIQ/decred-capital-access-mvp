@@ -30,7 +30,7 @@ describe("risk calculations", () => {
 
     expect(quote.ltvBps).toBeGreaterThan(2800);
     expect(quote.maxBorrowAt35Ltv).toBeGreaterThan(400);
-    expect(quote.warnings).toContain("DCRDEX stablecoin liquidity is thin, so liquidation remains manual in v1.");
+    expect(quote.warnings).toContain("DCRDEX stablecoin liquidity is thin, so liquidation automation remains review-gated in v1.");
   });
 
   it("calculates the platform origination fee from protocol config", () => {

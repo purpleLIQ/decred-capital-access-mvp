@@ -13,7 +13,7 @@ export const demoMarketSnapshot: MarketSnapshot = {
   sourceCount: 4,
   stale: false,
   warnings: [
-    "DCRDEX DCR/USDC and DCR/USDT books were empty during research, so demo liquidation stays manual.",
+    "DCRDEX DCR/USDC and DCR/USDT books were empty during research, so liquidation automation stays review-gated.",
     "No mainnet keys are used in this app.",
   ],
   updatedAt: now.toISOString(),

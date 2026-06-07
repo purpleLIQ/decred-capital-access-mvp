@@ -1,119 +1,126 @@
 # Roadmap
 
-## Phase 0: Research Validation
+## Phase 1: Finish Testnet/Simnet Structure
 
-Objective: prove the core assumptions with local tools.
+Objective: prepare the app for real simnet proof without unsafe signing.
 
 Deliverables:
 
-- Documented dcrd/dcrwallet setup.
-- Simnet scripts for three wallets.
-- Verified 2-of-3 multisig create, fund, sign, release, and liquidation spend.
+- Transaction-review model.
+- Simnet adapter.
+- Wallet RPC config.
+- Unsigned transaction builder.
+- Review UI.
+- Safety tests.
 
 Success criteria:
 
-- Two independent signers can move escrowed DCR.
+- Demo and simnet stay blocked until unsigned transaction builders exist.
+- No private keys are stored server-side.
+- No transaction can move to signing without blockers cleared and approvals complete.
+
+## Phase 2: Full Simnet Proof
+
+Objective: prove the real Decred collateral lifecycle in an isolated environment.
+
+Deliverables:
+
+- Borrower, lender, and arbiter wallets.
+- 2-of-3 escrow creation.
+- Deposit/fund/repay/release flow.
+- Liquidation path.
+- Complete audit trail.
+
+Success criteria:
+
+- Two required signers can release collateral.
 - No single party can move collateral alone.
+- Release and liquidation paths produce auditable simnet transaction IDs.
 
-## Phase 1: Simnet Proof Of Concept
+## Phase 3: Autonomous Risk Engine
 
-Objective: make the demo use real simnet DCR events.
+Objective: ensure production does not depend on manual liquidation memory.
 
 Deliverables:
 
-- Docker Compose for dcrd/dcrwallet.
-- DecredAdapter simnet implementation.
-- Confirmation watcher.
+- Watcher job.
+- Automated liquidation policy evaluation.
+- Queueing transaction reviews.
+- Notification system.
+- Alerts.
+- Retry and circuit breaker behavior.
 
 Success criteria:
 
-- A local user can run one command and see real simnet deposits activate a loan.
+- Risky loans are detected automatically.
+- Borrowers and operators are warned.
+- Liquidation reviews are queued automatically when all gates pass.
+- Signing and broadcast remain separate from the app server.
 
-## Phase 2: Web App MVP
+## Phase 4: Production Backend
 
-Objective: make the product usable for demos.
-
-Deliverables:
-
-- Quote, loan, status, repayment, admin, market, and docs screens.
-- Persistent local database.
-- Seeded demo mode.
-
-Success criteria:
-
-- A non-coder can complete the full demo flow.
-
-## Phase 3: Multisig Signing Flow
-
-Objective: move from placeholder escrow to real signing.
+Objective: replace demo storage and local assumptions.
 
 Deliverables:
 
-- Transaction preview.
-- Signature collection.
-- Signed-transaction validation.
-- Release and liquidation transaction flows.
-
-Success criteria:
-
-- Borrower/lender/arbiter can complete happy-path and default-path signing in simnet.
-
-## Phase 4: Price And Depth Integrations
-
-Objective: make risk decisions use robust market data.
-
-Deliverables:
-
-- Kraken public market data.
-- DCRDEX spots/order books.
-- CoinGecko/CoinPaprika/CryptoCompare fallback.
-- Stale/divergence checks.
-
-Success criteria:
-
-- App refuses risky state transitions when oracle health is poor.
-
-## Phase 5: Liquidation Workflow
-
-Objective: make default handling operator-safe.
-
-Deliverables:
-
-- Liquidation queue.
-- Venue depth checks.
-- Manual execution checklist.
-- Audit trail.
-
-Success criteria:
-
-- Operator can see exactly why a liquidation is allowed or blocked.
-
-## Phase 6: Limited Mainnet Alpha
-
-Objective: run tiny capped real-money loans.
-
-Deliverables:
-
-- Separate production keys.
-- Legal/compliance review.
+- Production database.
+- Migrations.
+- Secrets management.
+- Background jobs.
+- Logging.
 - Monitoring.
-- Emergency pause.
+- Rate limiting.
+- Admin access controls.
 
 Success criteria:
 
-- Small loans run safely with manual review.
+- Hosted alpha can run with reliable data, jobs, logs, and alerts.
 
-## Phase 7: Production Hardening
+## Phase 5: Revenue And Accounting
 
-Objective: turn alpha into a real lending product.
+Objective: make the product measurable as a business.
 
 Deliverables:
 
-- External security review.
-- Stronger custody/key procedures.
-- Better lender capital management.
-- Partner wallet/exchange integrations.
+- Origination fee collection.
+- Platform treasury config.
+- Fee ledger.
+- Reconciliation.
+- Revenue dashboard.
 
 Success criteria:
 
-- The app can responsibly support larger loan sizes and external users.
+- Every fee is traceable from quote to collection to accounting report.
+
+## Phase 6: Legal And Security
+
+Objective: reduce launch risk before real funds.
+
+Deliverables:
+
+- Legal/compliance review.
+- Threat model.
+- Key custody review.
+- External code/security review.
+- Operational runbooks.
+
+Success criteria:
+
+- The product has reviewed operating limits, key boundaries, incident processes, and user disclosures.
+
+## Phase 7: Limited Launch
+
+Objective: run a capped beta only after simnet/testnet proof.
+
+Deliverables:
+
+- Testnet pilot.
+- Capped production beta.
+- Circuit breakers.
+- Manual emergency stop.
+- Monitoring and alerts.
+- User docs.
+
+Success criteria:
+
+- Small, capped loans run with clear monitoring, emergency controls, and reviewed legal/security posture.

@@ -16,7 +16,7 @@ The operator role exists because v1 is trust-minimized, not fully automated.
 - Detect collateral: simulates a DCR deposit reaching the required confirmation threshold.
 - Approve/fund: simulates operator approval and USDC payout.
 - Margin warning: moves a loan into borrower attention.
-- Liquidation review: moves a loan into manual review.
+- Liquidation review: moves a loan into review-gated liquidation workflow.
 - Default: marks a missed-remediation loan as defaulted.
 - Complete liquidation: simulates liquidation progress.
 

@@ -35,6 +35,7 @@ export interface TransactionReview {
 export interface DecredLendingAdapter {
   readonly mode: DecredNetworkMode;
   readonly canSign: boolean;
+  readonly canBroadcast: boolean;
   createEscrowPreview(seed: string): EscrowPreview;
   getLoanEscrowChecklist(loan: Loan): string[];
   createTransactionReview(loan: Loan, purpose: TransactionPurpose): TransactionReview;

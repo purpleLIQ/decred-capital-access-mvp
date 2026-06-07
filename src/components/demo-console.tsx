@@ -22,10 +22,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
+import type { TransactionPurpose } from "@/lib/adapters/decred-types";
+import type { ApprovalRole, ApprovalState, ReviewableNetworkMode, TransactionReviewEnvelope } from "@/lib/transaction-review";
 import type { EscrowPreview, Loan, LoanAction, LoanEvent, MarketSnapshot, Quote, TicketCollateralNote } from "@/lib/types";
 import { formatBps } from "@/lib/risk";
 
-type Tab = "quote" | "status" | "repay" | "admin" | "market" | "docs";
+type Tab = "quote" | "status" | "repay" | "admin" | "txReview" | "market" | "docs";
 
 interface DemoLoan extends Loan {
   riskLevel: "healthy" | "watch" | "warning" | "liquidation";
@@ -46,9 +48,19 @@ const tabs: Array<{ id: Tab; label: string; icon: ComponentType<{ className?: st
   { id: "status", label: "Status", icon: Activity },
   { id: "repay", label: "Repay", icon: WalletCards },
   { id: "admin", label: "Operator", icon: ShieldCheck },
+  { id: "txReview", label: "Tx review", icon: ClipboardList },
   { id: "market", label: "Market", icon: BarChart3 },
   { id: "docs", label: "Docs", icon: FileText },
 ];
+
+const reviewPurposes: Array<{ value: TransactionPurpose; label: string }> = [
+  { value: "collateral_deposit", label: "Collateral deposit" },
+  { value: "loan_payout", label: "Loan payout" },
+  { value: "collateral_release", label: "Collateral release" },
+  { value: "liquidation", label: "Liquidation" },
+];
+
+const approvalRoles: ApprovalRole[] = ["borrower", "lender", "arbiter", "operator"];
 
 export function DemoConsole() {
   const [payload, setPayload] = useState<DemoPayload | null>(null);
@@ -59,6 +71,16 @@ export function DemoConsole() {
   const [borrowAmount, setBorrowAmount] = useState(350);
   const [borrowAsset, setBorrowAsset] = useState<Loan["borrowAsset"]>("USDC");
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [transactionReview, setTransactionReview] = useState<TransactionReviewEnvelope | null>(null);
+  const [transactionReviewReady, setTransactionReviewReady] = useState(false);
+  const [transactionReviewPurpose, setTransactionReviewPurpose] = useState<TransactionPurpose>("collateral_release");
+  const [transactionReviewNetwork, setTransactionReviewNetwork] = useState<ReviewableNetworkMode>("demo");
+  const [reviewApprovals, setReviewApprovals] = useState<ApprovalState>({
+    borrower: false,
+    lender: false,
+    arbiter: false,
+    operator: false,
+  });
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -154,6 +176,38 @@ export function DemoConsole() {
       });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Action failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function generateTransactionReview() {
+    if (!selectedLoan) return;
+    setBusy("transaction_review");
+    setNotice(null);
+    try {
+      const response = await fetch("/api/transaction-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loanId: selectedLoan.id,
+          purpose: transactionReviewPurpose,
+          network: transactionReviewNetwork,
+          approvals: reviewApprovals,
+        }),
+      });
+      const result = (await response.json()) as {
+        review: TransactionReviewEnvelope;
+        canMoveToSigning: boolean;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error);
+      setTransactionReview(result.review);
+      setTransactionReviewReady(result.canMoveToSigning);
+      setNotice(`${result.review.purposeLabel} generated as ${readableStatus(result.review.status)}.`);
+      setActiveTab("txReview");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Transaction review failed.");
     } finally {
       setBusy(null);
     }
@@ -261,7 +315,7 @@ export function DemoConsole() {
                     <StatusPill status={loan.status} />
                   </div>
                   <p className="mt-2 text-sm text-[#577067]">
-                    {loan.collateralDcr || "Ticket proof"} DCR collateral · {currency(loan.borrowAmount)}{" "}
+                    {loan.collateralDcr || "Ticket proof"} DCR collateral - {currency(loan.borrowAmount)}{" "}
                     {loan.borrowAsset}
                   </p>
                 </button>
@@ -296,6 +350,21 @@ export function DemoConsole() {
                 operatorMode={operatorMode}
                 busy={busy}
                 runAction={runAction}
+              />
+            ) : null}
+            {activeTab === "txReview" && selectedLoan ? (
+              <TransactionReviewScreen
+                loan={selectedLoan}
+                busy={busy}
+                review={transactionReview}
+                reviewReady={transactionReviewReady}
+                purpose={transactionReviewPurpose}
+                network={transactionReviewNetwork}
+                approvals={reviewApprovals}
+                setPurpose={setTransactionReviewPurpose}
+                setNetwork={setTransactionReviewNetwork}
+                setApprovals={setReviewApprovals}
+                generateTransactionReview={generateTransactionReview}
               />
             ) : null}
             {activeTab === "market" && payload ? <MarketScreen payload={payload} /> : null}
@@ -539,6 +608,152 @@ function AdminScreen({
   );
 }
 
+function TransactionReviewScreen({
+  loan,
+  busy,
+  review,
+  reviewReady,
+  purpose,
+  network,
+  approvals,
+  setPurpose,
+  setNetwork,
+  setApprovals,
+  generateTransactionReview,
+}: {
+  loan: DemoLoan;
+  busy: string | null;
+  review: TransactionReviewEnvelope | null;
+  reviewReady: boolean;
+  purpose: TransactionPurpose;
+  network: ReviewableNetworkMode;
+  approvals: ApprovalState;
+  setPurpose: (value: TransactionPurpose) => void;
+  setNetwork: (value: ReviewableNetworkMode) => void;
+  setApprovals: (value: ApprovalState) => void;
+  generateTransactionReview: () => void;
+}) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Transaction review</h2>
+            <p className="mt-2 text-sm text-[#577067]">
+              Generate unsigned review envelopes for {loan.ref}. This screen never signs, broadcasts, or stores keys.
+            </p>
+          </div>
+          <StatusPill status={loan.status} />
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium text-[#42524c]">Purpose</span>
+            <select
+              className="mt-2 h-11 w-full rounded-md border border-[#ccd6d0] bg-white px-3 text-sm"
+              value={purpose}
+              onChange={(event) => setPurpose(event.target.value as TransactionPurpose)}
+            >
+              {reviewPurposes.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-[#42524c]">Network boundary</span>
+            <select
+              className="mt-2 h-11 w-full rounded-md border border-[#ccd6d0] bg-white px-3 text-sm"
+              value={network}
+              onChange={(event) => setNetwork(event.target.value as ReviewableNetworkMode)}
+            >
+              <option value="demo">Demo - blocked preview</option>
+              <option value="simnet">Simnet - blocked until RPC builder exists</option>
+            </select>
+          </label>
+
+          <div>
+            <p className="text-sm font-medium text-[#42524c]">Approval state</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {approvalRoles.map((role) => (
+                <label key={role} className="flex items-center gap-2 rounded-md border border-[#d8dfda] bg-[#f7f9f8] px-3 py-2 text-sm">
+                  <input
+                    checked={approvals[role]}
+                    onChange={(event) => setApprovals({ ...approvals, [role]: event.target.checked })}
+                    type="checkbox"
+                  />
+                  {titleCase(role)}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button
+            className="inline-flex h-11 items-center gap-2 rounded-md bg-[#17211d] px-4 text-sm font-semibold text-white hover:bg-[#2b3732] disabled:opacity-60"
+            disabled={busy === "transaction_review"}
+            onClick={generateTransactionReview}
+          >
+            <ClipboardList className="h-4 w-4" />
+            {busy === "transaction_review" ? "Generating" : "Generate review"}
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
+        <h2 className="text-xl font-semibold">Review result</h2>
+        {review ? (
+          <div className="mt-5 space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <MiniStat label="Status" value={readableStatus(review.status)} />
+              <MiniStat label="Network" value={review.network} />
+              <MiniStat label="Can move to signing" value={reviewReady ? "yes" : "no"} />
+            </div>
+
+            <div className="rounded-md bg-[#eef3f0] p-4">
+              <p className="text-sm font-semibold text-[#42524c]">{review.purposeLabel}</p>
+              <p className="mt-2 text-sm text-[#577067]">{review.summary}</p>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              <ReviewList title="Required approvals" items={review.requiredApprovals.map(titleCase)} tone="neutral" />
+              <ReviewList
+                title="Signing boundary"
+                items={[
+                  "Server signing disabled",
+                  "Broadcast disabled",
+                  "No private keys stored",
+                  review.signingBoundary.rawTransactionHexPresent ? "Unsigned raw hex present" : "No raw transaction hex",
+                ]}
+                tone="neutral"
+              />
+            </div>
+
+            {review.blockers.length ? <ReviewList title="Blockers" items={review.blockers} tone="warning" /> : null}
+            {review.warnings.length ? <ReviewList title="Warnings" items={review.warnings} tone="warning" /> : null}
+
+            {review.unsignedTransaction ? (
+              <div className="rounded-md border border-[#d8dfda] bg-[#f7f9f8] p-4 text-sm text-[#42524c]">
+                <p className="font-semibold">Unsigned transaction preview</p>
+                <p className="mt-2">Raw transaction hex is {review.unsignedTransaction.rawTransactionHex ? "present" : "not built"}.</p>
+              </div>
+            ) : (
+              <Warning>No unsigned transaction was built. This is expected for demo mode and current simnet scaffolding.</Warning>
+            )}
+          </div>
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            title="No transaction review yet"
+            text="Pick a purpose and generate a blocked review preview before any future signing work."
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
 function MarketScreen({ payload }: { payload: DemoPayload }) {
   const market = payload.market;
   return (
@@ -751,6 +966,31 @@ function FlowStep({ label, text }: { label: string; text: string }) {
   );
 }
 
+function ReviewList({ title, items, tone }: { title: string; items: string[]; tone: "neutral" | "warning" }) {
+  const itemClass =
+    tone === "warning"
+      ? "flex gap-2 rounded-md bg-[#fff4d8] p-3 text-sm text-[#6f4d00]"
+      : "flex gap-2 rounded-md bg-[#f7f9f8] p-3 text-sm text-[#42524c]";
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#577067]">{title}</h3>
+      <div className="mt-3 space-y-2">
+        {items.map((item) => (
+          <div key={item} className={itemClass}>
+            {tone === "warning" ? (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#155e59]" />
+            )}
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EmptyState({
   icon: Icon,
   title,
@@ -775,8 +1015,12 @@ function currency(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
 }
 
-function readableStatus(status: Loan["status"]): string {
+function readableStatus(status: string): string {
   return status.replaceAll("_", " ");
+}
+
+function titleCase(value: string): string {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function shortDate(value: string): string {
