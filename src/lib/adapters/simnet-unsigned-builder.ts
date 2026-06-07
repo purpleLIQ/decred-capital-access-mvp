@@ -21,6 +21,12 @@ export interface SimnetUnsignedTransactionBuilder {
   build(input: SimnetUnsignedTransactionBuildInput): SimnetUnsignedTransactionBuildResult;
 }
 
+export interface StaticSimnetUnsignedTransactionBuilderOptions {
+  rawTransactionHexByPurpose?: Partial<Record<Extract<TransactionPurpose, "collateral_release" | "liquidation">, string>>;
+  destinationAddressByPurpose?: Partial<Record<Extract<TransactionPurpose, "collateral_release" | "liquidation">, string>>;
+  estimatedFeeDcr?: number;
+}
+
 export class BlockedSimnetUnsignedTransactionBuilder implements SimnetUnsignedTransactionBuilder {
   build(input: SimnetUnsignedTransactionBuildInput): SimnetUnsignedTransactionBuildResult {
     return {
@@ -38,8 +44,14 @@ export class BlockedSimnetUnsignedTransactionBuilder implements SimnetUnsignedTr
 }
 
 export class StaticSimnetUnsignedTransactionBuilder implements SimnetUnsignedTransactionBuilder {
+  constructor(private readonly options: StaticSimnetUnsignedTransactionBuilderOptions = {}) {}
+
   build(input: SimnetUnsignedTransactionBuildInput): SimnetUnsignedTransactionBuildResult {
-    const blockers = validateUnsignedBuildInput(input);
+    const rawTransactionHex = input.rawTransactionHex ?? this.options.rawTransactionHexByPurpose?.[input.purpose] ?? null;
+    const destinationAddress =
+      input.destinationAddress ?? this.options.destinationAddressByPurpose?.[input.purpose] ?? fallbackDestinationForPurpose(input.loan, input.purpose);
+    const estimatedFeeDcr = input.estimatedFeeDcr ?? this.options.estimatedFeeDcr ?? 0.001;
+    const blockers = validateUnsignedBuildInput({ ...input, rawTransactionHex });
 
     if (blockers.length > 0) {
       return {
@@ -56,12 +68,12 @@ export class StaticSimnetUnsignedTransactionBuilder implements SimnetUnsignedTra
         purpose: input.purpose,
         loanId: input.loan.id,
         fromAddress: input.loan.escrowAddress,
-        toAddress: input.destinationAddress ?? fallbackDestinationForPurpose(input.loan, input.purpose),
+        toAddress: destinationAddress,
         amountDcr: input.loan.collateralDcr,
-        estimatedFeeDcr: input.estimatedFeeDcr ?? 0.001,
+        estimatedFeeDcr,
         requiredSignatures: 2,
         totalSigners: 3,
-        rawTransactionHex: input.rawTransactionHex ?? null,
+        rawTransactionHex,
         warnings: [
           "Unsigned simnet preview only. It must be reviewed and signed outside the app-owned server process.",
           "Broadcast remains disabled until signed transaction validation and explicit operator action are implemented.",
