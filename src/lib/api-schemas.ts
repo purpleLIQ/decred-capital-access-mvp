@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const borrowAssetSchema = z.enum(["USDC", "USDT", "BTC"]);
+export const transactionPurposeSchema = z.enum(["collateral_deposit", "loan_payout", "collateral_release", "liquidation"]);
 
 export const loanInputSchema = z.object({
   collateralDcr: z.coerce.number().positive().max(100000),
@@ -21,6 +22,11 @@ export const loanActionSchema = z.object({
     "complete_liquidation",
     "cancel",
   ]),
+});
+
+export const transactionReviewSchema = z.object({
+  loanId: z.string().min(1),
+  purpose: transactionPurposeSchema,
 });
 
 export function formatSchemaError(error: z.ZodError): string {
