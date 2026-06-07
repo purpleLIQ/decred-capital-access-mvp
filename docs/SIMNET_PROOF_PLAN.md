@@ -2,6 +2,8 @@
 
 Simnet is the first real-network proof target. It should be isolated, repeatable, and use separate borrower, lender, and arbiter wallets.
 
+See `docs/SIMNET_RUNBOOK.md` for the current local runbook and proof harness commands.
+
 ## Decred Setup
 
 - Run isolated simnet first.
@@ -21,6 +23,22 @@ Simnet RPC stays disabled until `DCR_SIMNET_ENABLED=true` is set. A complete loc
 - separate `DCRWALLET_SIMNET_ARBITER_*` values.
 
 The app may read RPC URLs, usernames, certificate paths, and password environment variable names. It must not commit credentials, store private keys, sign transactions, or broadcast from the app-owned server process.
+
+## Harness Commands
+
+Check configuration without making RPC calls:
+
+```bash
+npm run simnet:check-config
+```
+
+Probe read-only wallet RPC reachability:
+
+```bash
+npm run simnet:probe-rpc
+```
+
+The probe is restricted to read-only/unsigned methods. It does not unlock wallets, sign, broadcast, import keys, or export keys.
 
 ## Required Proof Flows
 
@@ -65,6 +83,8 @@ Production must not require manual liquidation. The simnet plan must prove guard
 - Simnet environment setup command.
 - Wallet creation notes.
 - Environment variable template.
+- `npm run simnet:check-config` output.
+- `npm run simnet:probe-rpc` output.
 - Escrow transaction IDs.
 - Review envelope snapshots.
 - Signature collection notes.
