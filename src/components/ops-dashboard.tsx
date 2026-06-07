@@ -3,6 +3,7 @@
 import { Activity, AlertTriangle, ArrowLeft, CheckCircle2, Database, Gauge, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { LoanStatus } from "@/lib/types";
 
 type SystemHealth = {
@@ -186,7 +187,7 @@ function HealthMetric({
   detail,
   tone,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   label: string;
   value: string;
   detail: string;
@@ -226,7 +227,7 @@ function CheckRow({ label, passed }: { label: string; passed: boolean }) {
   );
 }
 
-function Warning({ children }: { children: React.ReactNode }) {
+function Warning({ children }: { children: ReactNode }) {
   return (
     <div className="flex gap-2 rounded-md bg-[#fff4d8] p-3 text-sm text-[#6f4d00]">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
