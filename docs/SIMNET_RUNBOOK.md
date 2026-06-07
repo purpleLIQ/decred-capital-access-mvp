@@ -1,6 +1,6 @@
 # Simnet Proof Runbook
 
-This runbook is for the first real-network proof path. It is intentionally limited to configuration checks and read-only/unsigned RPC probing.
+This runbook is for the first real-network proof path. It is intentionally limited to configuration checks, read-only RPC probing, and unsigned transaction preview construction.
 
 ## Boundary
 
@@ -10,7 +10,8 @@ Allowed in this phase:
 - configure `dcrd` and separate borrower/lender/arbiter `dcrwallet` RPC endpoints,
 - verify required environment variables,
 - probe wallet RPC reachability with `listunspent`,
-- inspect whether escrow UTXOs exist.
+- inspect whether escrow UTXOs exist,
+- build unsigned release/liquidation preview artifacts with `createrawtransaction`.
 
 Not allowed in this phase:
 
@@ -63,7 +64,23 @@ DCRWALLET_SIMNET_ARBITER_RPC_CERT_PATH=...
 DCRWALLET_SIMNET_ARBITER_ACCOUNT=...
 ```
 
-Do not commit a populated `.env` file.
+Unsigned preview commands also need proof-specific values:
+
+```bash
+SIMNET_PREVIEW_PURPOSE=collateral_release
+SIMNET_PREVIEW_LOAN_ID=simnet_proof_loan
+SIMNET_PREVIEW_ESCROW_ADDRESS=...
+SIMNET_PREVIEW_REDEEM_SCRIPT=...
+SIMNET_PREVIEW_COLLATERAL_DCR=...
+SIMNET_PREVIEW_DESTINATION_ADDRESS=...
+SIMNET_PREVIEW_FEE_DCR=0.001
+SIMNET_PREVIEW_MIN_CONFIRMATIONS=1
+SIMNET_PREVIEW_OUTPUT_PATH=artifacts/simnet/unsigned-release-preview.json
+```
+
+For liquidation previews, use `SIMNET_PREVIEW_PURPOSE=liquidation`. Release previews use the borrower wallet RPC role. Liquidation previews use the lender wallet RPC role.
+
+Do not commit a populated `.env` file or generated proof artifacts that contain sensitive local details.
 
 ## Harness Commands
 
@@ -79,6 +96,12 @@ Probe wallet RPC reachability using read-only wallet calls:
 npm run simnet:probe-rpc
 ```
 
+Build an unsigned simnet preview artifact:
+
+```bash
+npm run simnet:build-unsigned-preview
+```
+
 Run the normal project verification suite:
 
 ```bash
@@ -91,6 +114,7 @@ Capture these in a local proof log or PR comment when simnet is running:
 
 - `npm run simnet:check-config` output,
 - `npm run simnet:probe-rpc` output,
+- `npm run simnet:build-unsigned-preview` output,
 - wallet role mapping,
 - escrow address used for the test loan,
 - UTXO count and confirmation status,
