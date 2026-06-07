@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   BarChart3,
@@ -64,7 +63,6 @@ export function BorrowFlow() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh().catch(() => setNotice("Demo data could not load. Try refreshing the page."));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function clearLiveQuote() {
