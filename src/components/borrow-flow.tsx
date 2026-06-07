@@ -6,15 +6,13 @@ import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
-  CircleDollarSign,
   Gauge,
   Landmark,
   LockKeyhole,
   ShieldCheck,
-  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatBps } from "@/lib/risk";
 import type { Loan, MarketSnapshot, Quote } from "@/lib/types";
 
@@ -44,7 +42,10 @@ export function BorrowFlow() {
   }
 
   useEffect(() => {
+    // This effect starts one async demo data load after the landing page mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh().catch(() => setNotice("Demo data could not load. Try refreshing the page."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function createQuote() {
