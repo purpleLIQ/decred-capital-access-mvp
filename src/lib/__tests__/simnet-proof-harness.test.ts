@@ -7,9 +7,10 @@ const checkConfigScript = readFileSync(join(rootDir, "scripts/simnet-proof/check
 const probeRpcScript = readFileSync(join(rootDir, "scripts/simnet-proof/probe-rpc.mjs"), "utf8");
 const escrowUtxoInspectorScript = readFileSync(join(rootDir, "scripts/simnet-proof/inspect-escrow-utxos.mjs"), "utf8");
 const unsignedPreviewScript = readFileSync(join(rootDir, "scripts/simnet-proof/build-unsigned-preview.mjs"), "utf8");
+const artifactValidatorScript = readFileSync(join(rootDir, "scripts/simnet-proof/validate-artifacts.mjs"), "utf8");
 
 describe("simnet proof harness safety boundary", () => {
-  it("keeps unsafe RPC methods blocked in all harness scripts", () => {
+  it("keeps unsafe RPC methods blocked in all RPC harness scripts", () => {
     for (const method of ["sendrawtransaction", "signrawtransaction", "walletpassphrase", "importprivkey", "dumpprivkey"]) {
       expect(checkConfigScript).toContain(method);
       expect(probeRpcScript).toContain(method);
@@ -41,8 +42,17 @@ describe("simnet proof harness safety boundary", () => {
     expect(unsignedPreviewScript).toContain("It does not sign, unlock wallets, import/export private keys, broadcast, or execute liquidation.");
   });
 
+  it("keeps the artifact validator offline", () => {
+    expect(artifactValidatorScript).toContain("This validator reads local JSON artifacts only.");
+    expect(artifactValidatorScript).toContain("readFileSync");
+    expect(artifactValidatorScript).not.toContain("fetch(");
+    expect(artifactValidatorScript).not.toContain("callWalletRpc");
+    expect(artifactValidatorScript).not.toContain('method: "listunspent"');
+    expect(artifactValidatorScript).not.toContain('method: "createrawtransaction"');
+  });
+
   it("does not include private-key, signing, or broadcast command helpers", () => {
-    for (const script of [checkConfigScript, probeRpcScript, escrowUtxoInspectorScript, unsignedPreviewScript]) {
+    for (const script of [checkConfigScript, probeRpcScript, escrowUtxoInspectorScript, unsignedPreviewScript, artifactValidatorScript]) {
       expect(script).not.toContain("walletpassphrase ");
       expect(script).not.toContain("signrawtransaction ");
       expect(script).not.toContain("sendrawtransaction ");
