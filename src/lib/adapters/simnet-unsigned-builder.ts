@@ -47,7 +47,7 @@ export class StaticSimnetUnsignedTransactionBuilder implements SimnetUnsignedTra
   constructor(private readonly options: StaticSimnetUnsignedTransactionBuilderOptions = {}) {}
 
   build(input: SimnetUnsignedTransactionBuildInput): SimnetUnsignedTransactionBuildResult {
-    const rawTransactionHex = input.rawTransactionHex ?? this.options.rawTransactionHexByPurpose?.[input.purpose] ?? null;
+    const rawTransactionHex = input.rawTransactionHex ?? this.options.rawTransactionHexByPurpose?.[input.purpose];
     const destinationAddress =
       input.destinationAddress ?? this.options.destinationAddressByPurpose?.[input.purpose] ?? fallbackDestinationForPurpose(input.loan, input.purpose);
     const estimatedFeeDcr = input.estimatedFeeDcr ?? this.options.estimatedFeeDcr ?? 0.001;
