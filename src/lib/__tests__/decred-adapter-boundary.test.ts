@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DemoDecredAdapter } from "../adapters/decred-adapter";
 import { readSimnetRpcConfig } from "../adapters/simnet-rpc-config";
 import { SimnetDecredAdapter } from "../adapters/simnet-decred-adapter";
+import { StaticSimnetUnsignedTransactionBuilder } from "../adapters/simnet-unsigned-builder";
 import { demoLoans } from "../fixtures";
 
 const completeSimnetEnv = {
@@ -58,8 +59,40 @@ describe("Decred adapter safety boundary", () => {
     expect(adapter.canBroadcast).toBe(false);
     expect(review.status).toBe("blocked");
     expect(review.unsignedTransaction).toBeNull();
-    expect(review.blockers).toContain("Simnet RPC config is loaded, but no RPC transaction builder is connected yet.");
     expect(review.blockers).toContain("Unsigned transaction builder is not implemented.");
+    expect(review.blockers).toContain("No simnet wallet RPC call has produced unsigned raw transaction hex.");
+  });
+
+  it("can expose an injected simnet unsigned release preview without signing or broadcasting", () => {
+    const config = readSimnetRpcConfig(completeSimnetEnv);
+    const adapter = new SimnetDecredAdapter(
+      config,
+      new StaticSimnetUnsignedTransactionBuilder({
+        rawTransactionHexByPurpose: {
+          collateral_release: "01000000unsignedreleasepreview",
+        },
+      }),
+    );
+    const review = adapter.createTransactionReview(demoLoans[0], "collateral_release");
+
+    expect(review.status).toBe("blocked");
+    expect(review.unsignedTransaction?.rawTransactionHex).toBe("01000000unsignedreleasepreview");
+    expect(review.unsignedTransaction?.network).toBe("simnet");
+    expect(review.unsignedTransaction?.purpose).toBe("collateral_release");
+    expect(adapter.canSign).toBe(false);
+    expect(adapter.canBroadcast).toBe(false);
+    expect(review.blockers).toContain("Signing must be performed outside the app-owned server process.");
+    expect(review.blockers).toContain("Broadcast remains disabled until signed transaction validation and explicit operator action are implemented.");
+  });
+
+  it("does not create an unsigned preview without raw transaction hex", () => {
+    const config = readSimnetRpcConfig(completeSimnetEnv);
+    const adapter = new SimnetDecredAdapter(config, new StaticSimnetUnsignedTransactionBuilder());
+    const review = adapter.createTransactionReview(demoLoans[0], "liquidation");
+
+    expect(review.status).toBe("blocked");
+    expect(review.unsignedTransaction).toBeNull();
+    expect(review.blockers).toContain("Unsigned raw transaction hex is required before a review can move to signing.");
   });
 
   it("requires explicit simnet enablement and separate wallet RPC credentials", () => {
