@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "audit": "npm audit --audit-level=moderate",
     "verify": "node scripts/verify.mjs",
-    "demo": "next dev"
+    "demo": "next dev",
+    "simnet:check-config": "node scripts/simnet-proof/check-config.mjs",
+    "simnet:probe-rpc": "node scripts/simnet-proof/probe-rpc.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
