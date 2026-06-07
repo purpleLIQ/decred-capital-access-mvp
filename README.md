@@ -85,14 +85,17 @@ src/components/        Demo console UI
 src/lib/adapters/      Decred, DCRDEX, Kraken adapters
 src/lib/               State machine, oracle, fixtures, SQLite store
 src/lib/__tests__/     Unit tests
-docs/                  User, operator, risk, and ticket-collateral docs
-docs/TRANSACTION_REVIEW.md  Transaction-review boundary and readiness rules
-docs/SIMNET_PROOF_PLAN.md   Required simnet proof path
-docs/TESTNET_READINESS.md   Testnet readiness checklist
-AI_HANDOFF.md          Give-this-to-another-AI continuation brief
-RESEARCH.md            Source-backed research notes
-ROADMAP.md             Phase 1 through Phase 7 production-readiness plan
+docs/                  Product, operations, risk, research, and handoff docs
 ```
+
+Key docs:
+
+- `docs/AI_HANDOFF.md` — give-this-to-another-AI continuation brief.
+- `docs/ROADMAP.md` — Phase 1 through Phase 7 production-readiness plan.
+- `docs/RESEARCH.md` — source-backed research notes.
+- `docs/TRANSACTION_REVIEW.md` — transaction-review boundary and readiness rules.
+- `docs/SIMNET_PROOF_PLAN.md` — required simnet proof path.
+- `docs/TESTNET_READINESS.md` — testnet readiness checklist.
 
 ## Mainnet Caution
 

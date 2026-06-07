@@ -4,7 +4,7 @@ You are continuing a Decred-native lending app. The user is non-technical and wa
 
 Repository: `https://github.com/purpleLIQ/decred-capital-access-mvp`
 
-Current branch: `production/transaction-review-model`
+Current branch: `main`
 
 Run:
 
@@ -37,7 +37,7 @@ npm run verify
   - `src/lib/transaction-review.ts`
   - `src/lib/adapters/*`
 
-## Completed On This Branch
+## Completed
 
 - Transaction review envelope model.
 - Approval state model for borrower, lender, arbiter, and operator.
@@ -45,6 +45,8 @@ npm run verify
 - `POST /api/transaction-review`.
 - Console transaction-review tab.
 - Blocked demo and simnet review generation.
+- Simnet wallet RPC configuration.
+- Borrower quote UI cleanup: amount quick buttons removed.
 - Liquidation review integration with liquidation policy blockers.
 - Safety tests for schema validation, adapters, liquidation policy, state machine, and transaction review.
 - Docs:
@@ -55,11 +57,10 @@ npm run verify
 
 ## Current Transaction Review Status
 
-Transaction reviews are previews only. Demo and simnet reviews are blocked because:
+Transaction reviews are previews only. Demo and default simnet reviews are blocked because:
 
-- no wallet RPC connection exists,
-- no unsigned transaction builder exists,
-- no raw transaction hex is produced,
+- no proven running simnet wallet path exists,
+- no production-ready unsigned transaction builder is proven,
 - no server-side signing is allowed,
 - no broadcast path exists.
 
@@ -77,10 +78,10 @@ The review can move to signing only when status is `ready_for_signing`, blockers
 
 ## Next Best Work
 
-1. Build a simnet harness with isolated `dcrd`, three `dcrwallet` instances, and `dcrctl`.
-2. Add wallet RPC environment config with no mainnet defaults.
-3. Implement simnet-only unsigned transaction builders for release and liquidation.
-4. Display exact inputs, outputs, fees, redeem scripts, and transaction IDs in review envelopes.
+1. Get the clean unsigned-builder integration PR merged into `main`.
+2. Run `npm run verify` after the integration PR is merged.
+3. Prove the RPC-backed unsigned builder against isolated simnet wallets.
+4. Capture exact inputs, outputs, fees, redeem scripts, transaction IDs, and review envelope snapshots.
 5. Add non-custodial signing flow with borrower/lender/arbiter separation.
 6. Add a liquidation watcher job that queues transaction reviews automatically.
 7. Add notification and alert paths for warnings, failed jobs, stuck reviews, and degraded oracle/DEX state.
@@ -90,8 +91,8 @@ The review can move to signing only when status is `ready_for_signing`, blockers
 
 ## Recommended Next Branches
 
-- `production/simnet-wallet-rpc-config`
-- `production/unsigned-transaction-builder`
+- `production/simnet-proof-harness`
+- `production/non-custodial-signing`
 - `production/liquidation-watcher`
 - `production/revenue-ledger`
 
