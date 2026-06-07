@@ -15,7 +15,8 @@
     "simnet:check-config": "node scripts/simnet-proof/check-config.mjs",
     "simnet:probe-rpc": "node scripts/simnet-proof/probe-rpc.mjs",
     "simnet:inspect-escrow-utxos": "node scripts/simnet-proof/inspect-escrow-utxos.mjs",
-    "simnet:build-unsigned-preview": "node scripts/simnet-proof/build-unsigned-preview.mjs"
+    "simnet:build-unsigned-preview": "node scripts/simnet-proof/build-unsigned-preview.mjs",
+    "simnet:validate-artifacts": "node scripts/simnet-proof/validate-artifacts.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
