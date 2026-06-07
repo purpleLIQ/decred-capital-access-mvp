@@ -34,8 +34,6 @@ type DemoPayload = {
   loans: DemoLoan[];
 };
 
-const borrowPresets = [250, 350, 500, 750];
-const collateralPresets = [50, 100, 150, 250];
 const initialDcrUsd = 12.13;
 const initialCollateralDcr = 100;
 const initialBorrowAmount = 350;
@@ -217,8 +215,8 @@ export function BorrowFlow() {
               </div>
 
               <div className="space-y-4 p-4 sm:p-5">
-                <AssetAmountCard label="Borrow" value={borrowAmount} onChange={updateBorrowAmount} asset={borrowAsset} onAssetChange={updateBorrowAsset} help="Recommended: USDC" presets={borrowPresets} />
-                <AssetAmountCard label="Collateral" value={collateralDcr} onChange={updateCollateralDcr} asset="DCR" help={payload ? `${currency(payload.market.dcrUsd)} per DCR` : "Loading DCR/USD"} presets={collateralPresets} />
+                <AssetAmountCard label="Borrow" value={borrowAmount} onChange={updateBorrowAmount} asset={borrowAsset} onAssetChange={updateBorrowAsset} help="Tap the amount to type a value, or use the LTV slider below." />
+                <AssetAmountCard label="Collateral" value={collateralDcr} onChange={updateCollateralDcr} asset="DCR" help={payload ? `Tap the DCR amount to edit. ${currency(payload.market.dcrUsd)} per DCR.` : "Tap the DCR amount to edit. Loading DCR/USD."} />
                 <LtvMeter quote={preview} targetLtvBps={targetLtvBps} onChange={updateLtv} onSetCollateral={updateCollateralForCurrentBorrow} />
 
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -277,12 +275,12 @@ export function BorrowFlow() {
   );
 }
 
-function AssetAmountCard({ label, value, onChange, asset, onAssetChange, help, presets }: { label: string; value: number; onChange: (value: number) => void; asset: Loan["borrowAsset"] | "DCR"; onAssetChange?: (value: Loan["borrowAsset"]) => void; help: string; presets: number[] }) {
+function AssetAmountCard({ label, value, onChange, asset, onAssetChange, help }: { label: string; value: number; onChange: (value: number) => void; asset: Loan["borrowAsset"] | "DCR"; onAssetChange?: (value: Loan["borrowAsset"]) => void; help: string }) {
   return (
     <label className="block min-w-0 rounded-2xl border border-[#dbe7e2] bg-white p-4 shadow-sm">
       <span className="text-sm font-medium text-[#5f716a]">{label}</span>
       <div className="mt-2 flex min-w-0 items-center gap-3">
-        <input className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-[-0.05em] outline-none sm:text-4xl" min="0" type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+        <input aria-label={`${label} amount`} className="min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-[-0.05em] outline-none sm:text-4xl" min="0" type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
         {onAssetChange ? (
           <select className="h-11 shrink-0 rounded-full border border-[#cddbd5] bg-[#f7faf9] px-3 text-sm font-semibold" value={asset} onChange={(event) => onAssetChange(event.target.value as Loan["borrowAsset"])}>
             <option>USDC</option>
@@ -292,13 +290,6 @@ function AssetAmountCard({ label, value, onChange, asset, onAssetChange, help, p
         ) : (
           <span className="shrink-0 rounded-full border border-[#cddbd5] bg-[#f7faf9] px-4 py-2 text-sm font-semibold">{asset}</span>
         )}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {presets.map((preset) => (
-          <button className={`rounded-full border px-3 py-1 text-xs font-semibold ${value === preset ? "border-[#2970ff] bg-[#eef4ff] text-[#2970ff]" : "border-[#dbe7e2] bg-[#f7faf9] text-[#5f716a]"}`} key={preset} onClick={(event) => { event.preventDefault(); onChange(preset); }} type="button">
-            {preset.toLocaleString()} {asset}
-          </button>
-        ))}
       </div>
       <span className="mt-2 block truncate text-xs text-[#6b7b74]">{help}</span>
     </label>
