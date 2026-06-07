@@ -46,21 +46,20 @@ npm run verify
 - Console transaction-review tab.
 - Blocked demo and simnet review generation.
 - Simnet wallet RPC configuration.
+- Simnet unsigned-builder seam.
+- Guarded simnet wallet RPC client scaffold for unsigned-only methods.
+- RPC-backed unsigned release/liquidation builder scaffold for confirmed simnet escrow UTXOs.
 - Borrower quote UI cleanup: amount quick buttons removed.
 - Liquidation review integration with liquidation policy blockers.
-- Safety tests for schema validation, adapters, liquidation policy, state machine, and transaction review.
-- Docs:
-  - `docs/TRANSACTION_REVIEW.md`
-  - `docs/SIMNET_PROOF_PLAN.md`
-  - `docs/TESTNET_READINESS.md`
-  - `docs/SIGNING_BOUNDARY.md`
+- Root docs organized under `docs/`, with `AGENTS.md` and `CLAUDE.md` kept as small compatibility stubs.
+- Safety tests for schema validation, adapters, liquidation policy, state machine, transaction review, and unsigned-builder guardrails.
 
 ## Current Transaction Review Status
 
-Transaction reviews are previews only. Demo and default simnet reviews are blocked because:
+Transaction reviews are previews only. Demo and default simnet reviews remain blocked because:
 
 - no proven running simnet wallet path exists,
-- no production-ready unsigned transaction builder is proven,
+- the RPC-backed unsigned builder has not been proven against a running simnet,
 - no server-side signing is allowed,
 - no broadcast path exists.
 
@@ -78,16 +77,15 @@ The review can move to signing only when status is `ready_for_signing`, blockers
 
 ## Next Best Work
 
-1. Get the clean unsigned-builder integration PR merged into `main`.
-2. Run `npm run verify` after the integration PR is merged.
-3. Prove the RPC-backed unsigned builder against isolated simnet wallets.
-4. Capture exact inputs, outputs, fees, redeem scripts, transaction IDs, and review envelope snapshots.
-5. Add non-custodial signing flow with borrower/lender/arbiter separation.
-6. Add a liquidation watcher job that queues transaction reviews automatically.
-7. Add notification and alert paths for warnings, failed jobs, stuck reviews, and degraded oracle/DEX state.
-8. Move from local SQLite to production database only after simnet proof.
-9. Add fee ledger and revenue/accounting dashboard.
-10. Do legal, threat-model, custody, and external security review before any real-money launch.
+1. Run `npm run verify` on current `main`.
+2. Prove the RPC-backed unsigned builder against isolated simnet wallets.
+3. Capture exact inputs, outputs, fees, redeem scripts, transaction IDs, and review envelope snapshots.
+4. Add non-custodial signing flow with borrower/lender/arbiter separation.
+5. Add a liquidation watcher job that queues transaction reviews automatically.
+6. Add notification and alert paths for warnings, failed jobs, stuck reviews, and degraded oracle/DEX state.
+7. Move from local SQLite to production database only after simnet proof.
+8. Add fee ledger and revenue/accounting dashboard.
+9. Do legal, threat-model, custody, and external security review before any real-money launch.
 
 ## Recommended Next Branches
 
