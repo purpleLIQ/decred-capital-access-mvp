@@ -13,7 +13,8 @@
     "verify": "node scripts/verify.mjs",
     "demo": "next dev",
     "simnet:check-config": "node scripts/simnet-proof/check-config.mjs",
-    "simnet:probe-rpc": "node scripts/simnet-proof/probe-rpc.mjs"
+    "simnet:probe-rpc": "node scripts/simnet-proof/probe-rpc.mjs",
+    "simnet:build-unsigned-preview": "node scripts/simnet-proof/build-unsigned-preview.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
