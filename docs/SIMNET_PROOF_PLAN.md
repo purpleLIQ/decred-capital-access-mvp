@@ -11,6 +11,17 @@ Simnet is the first real-network proof target. It should be isolated, repeatable
 - Do not store private keys server-side.
 - Do not enable mainnet defaults.
 
+## Wallet RPC Environment
+
+Simnet RPC stays disabled until `DCR_SIMNET_ENABLED=true` is set. A complete local proof needs:
+
+- isolated `DCRD_SIMNET_RPC_*` values,
+- separate `DCRWALLET_SIMNET_BORROWER_*` values,
+- separate `DCRWALLET_SIMNET_LENDER_*` values,
+- separate `DCRWALLET_SIMNET_ARBITER_*` values.
+
+The app may read RPC URLs, usernames, certificate paths, and password environment variable names. It must not commit credentials, store private keys, sign transactions, or broadcast from the app-owned server process.
+
 ## Required Proof Flows
 
 1. Create loan quote.
