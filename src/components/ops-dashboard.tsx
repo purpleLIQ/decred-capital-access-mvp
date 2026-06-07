@@ -2,7 +2,7 @@
 
 import { Activity, AlertTriangle, ArrowLeft, CheckCircle2, Database, Gauge, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import type { LoanStatus } from "@/lib/types";
 
@@ -35,7 +35,7 @@ export function OpsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function refreshHealth() {
+  const refreshHealth = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
@@ -47,11 +47,15 @@ export function OpsDashboard() {
     } finally {
       setBusy(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void refreshHealth();
-  }, []);
+    const timeout = window.setTimeout(() => {
+      void refreshHealth();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [refreshHealth]);
 
   return (
     <main className="min-h-screen bg-[#f5f7f6] px-4 py-6 text-[#17211d] sm:px-6 lg:px-8">
