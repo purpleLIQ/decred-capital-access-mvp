@@ -26,6 +26,9 @@ type DemoPayload = {
   loans: DemoLoan[];
 };
 
+const borrowPresets = [250, 350, 500, 750];
+const collateralPresets = [50, 100, 150, 250];
+
 export function BorrowFlow() {
   const [payload, setPayload] = useState<DemoPayload | null>(null);
   const [collateralDcr, setCollateralDcr] = useState(100);
@@ -47,6 +50,21 @@ export function BorrowFlow() {
     void refresh().catch(() => setNotice("Demo data could not load. Try refreshing the page."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function updateBorrowAmount(value: number) {
+    setBorrowAmount(value);
+    setQuote(null);
+  }
+
+  function updateCollateralDcr(value: number) {
+    setCollateralDcr(value);
+    setQuote(null);
+  }
+
+  function updateBorrowAsset(value: Loan["borrowAsset"]) {
+    setBorrowAsset(value);
+    setQuote(null);
+  }
 
   async function createQuote() {
     setBusy("quote");
@@ -88,9 +106,11 @@ export function BorrowFlow() {
   }
 
   const preview = quote ?? buildPreviewQuote(collateralDcr, borrowAmount, borrowAsset, payload?.market.dcrUsd ?? 12.13);
-  const ltvPct = Math.min(preview.ltvBps / 100, 100);
   const activeLoans = payload?.loans.filter((loan) => ["funded", "active", "repayment_pending"].includes(loan.status)).length ?? 0;
   const healthTone = payload && payload.market.sourceCount >= 2 && !payload.market.stale ? "good" : "warning";
+  const monthlyInterest = Number((preview.borrowAmount * (preview.estimatedAprBps / 10000 / 12)).toFixed(2));
+  const estimatedPayoff = Number((preview.borrowAmount + monthlyInterest + preview.originationFee).toFixed(2));
+  const quoteMode = quote ? "Live quote" : "Preview";
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#061033] text-white">
@@ -117,24 +137,30 @@ export function BorrowFlow() {
             <Link className="rounded-full px-3 py-2 hover:bg-white/10 hover:text-white" href="/ops">Ops</Link>
             <Link className="rounded-full bg-white px-4 py-2 font-semibold text-[#091440]" href="/console">Console</Link>
           </nav>
+          <Link className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-[#091440] md:hidden" href="/console">
+            Console
+          </Link>
         </header>
 
-        <section className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[0.92fr_1.08fr] lg:py-16">
+        <section className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:py-16">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#2ed6a1]/30 bg-[#2ed6a1]/10 px-3 py-1 text-sm font-medium text-[#9bf0d6]">
               <ShieldCheck className="h-4 w-4" />
               Demo mode · no mainnet funds or private keys
             </div>
             <h1 className="mt-6 text-5xl font-semibold tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-              Get liquidity from your DCR without selling it.
+              Unlock DCR liquidity without selling.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-white/68">
-              A Decred-native lending prototype with transparent loan math, simulated 2-of-3 escrow, blended price checks, and operator review before any real-world rollout.
+              Enter a borrow amount, choose DCR collateral, and see the loan math before a simulated 2-of-3 escrow flow begins.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3" id="market">
               <HeroStat label="DCR/USD" value={payload ? currency(payload.market.dcrUsd) : "..."} detail={`${payload?.market.sourceCount ?? 0} sources`} tone={healthTone} />
-              <HeroStat label="Open demo loans" value={`${payload?.loans.length ?? "..."}`} detail={`${activeLoans} active`} tone="neutral" />
-              <HeroStat label="Custody model" value="2-of-3" detail="simulated escrow" tone="good" />
+              <HeroStat label="Demo loans" value={`${payload?.loans.length ?? "..."}`} detail={`${activeLoans} active`} tone="neutral" />
+              <HeroStat label="Custody model" value="2-of-3" detail="borrower/lender/arbiter" tone="good" />
+            </div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-white/62 backdrop-blur">
+              The borrower flow is intentionally clean. The older operator-heavy console now lives at <span className="font-semibold text-white">/console</span>.
             </div>
           </div>
 
@@ -142,7 +168,7 @@ export function BorrowFlow() {
             <div className="rounded-[1.5rem] border border-[#dbe7e2] bg-white p-5 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2970ff]">Instant quote</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2970ff]">{quoteMode}</p>
                   <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Borrow against DCR</h2>
                 </div>
                 <div className="rounded-full bg-[#e7f8f3] px-3 py-1 text-sm font-semibold text-[#118864]">Demo</div>
@@ -152,42 +178,41 @@ export function BorrowFlow() {
                 <AssetAmountCard
                   label="You borrow"
                   value={borrowAmount}
-                  onChange={setBorrowAmount}
+                  onChange={updateBorrowAmount}
                   asset={borrowAsset}
-                  onAssetChange={setBorrowAsset}
-                  help="USDC is the recommended demo asset."
+                  onAssetChange={updateBorrowAsset}
+                  help="USDC is the cleanest demo borrow asset."
+                  presets={borrowPresets}
                 />
                 <AssetAmountCard
                   label="You lock"
                   value={collateralDcr}
-                  onChange={setCollateralDcr}
+                  onChange={updateCollateralDcr}
                   asset="DCR"
                   help={payload ? `Using ${currency(payload.market.dcrUsd)} blended DCR/USD.` : "Loading blended DCR/USD."}
+                  presets={collateralPresets}
                 />
               </div>
 
-              <div className="mt-6 rounded-2xl border border-[#dbe7e2] bg-[#f7faf9] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-[#5f716a]">Loan-to-value</p>
-                    <p className="text-3xl font-semibold tracking-[-0.04em]">{formatBps(preview.ltvBps)}</p>
-                  </div>
-                  <RiskBadge ltvBps={preview.ltvBps} />
-                </div>
-                <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#d9e4df]">
-                  <div className={ltvBarClass(preview.ltvBps)} style={{ width: `${Math.min(ltvPct, 100)}%` }} />
-                </div>
-                <div className="mt-2 flex justify-between text-xs font-medium text-[#6b7b74]">
-                  <span>0%</span>
-                  <span>35% target</span>
-                  <span>70% liquidation</span>
-                </div>
-              </div>
+              <LtvMeter quote={preview} />
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 <MiniPanel label="Collateral value" value={currency(preview.collateralUsd)} />
                 <MiniPanel label="Platform fee" value={currency(preview.originationFee)} />
                 <MiniPanel label="Max at 35%" value={currency(preview.maxBorrowAt35Ltv)} />
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-[#dbe7e2] bg-[#f7faf9] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[#42524c]">Loan summary</p>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#2970ff]">30-day demo</span>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <SummaryRow label="Principal" value={`${currency(preview.borrowAmount)} ${preview.borrowAsset}`} />
+                  <SummaryRow label="Estimated monthly interest" value={currency(monthlyInterest)} />
+                  <SummaryRow label="Platform fee" value={currency(preview.originationFee)} />
+                  <SummaryRow label="Estimated payoff" value={`${currency(estimatedPayoff)} ${preview.borrowAsset}`} strong />
+                </div>
               </div>
 
               <div className="mt-5 grid gap-2">
@@ -210,7 +235,7 @@ export function BorrowFlow() {
                   onClick={createQuote}
                 >
                   <Gauge className="h-4 w-4" />
-                  {busy === "quote" ? "Pricing..." : "Price quote"}
+                  {busy === "quote" ? "Pricing..." : "Refresh quote"}
                 </button>
                 <button
                   className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#2970ff] px-4 text-sm font-semibold text-white shadow-lg shadow-[#2970ff]/25 hover:bg-[#1d5fe8] disabled:opacity-60"
@@ -242,6 +267,7 @@ function AssetAmountCard({
   asset,
   onAssetChange,
   help,
+  presets,
 }: {
   label: string;
   value: number;
@@ -249,6 +275,7 @@ function AssetAmountCard({
   asset: Loan["borrowAsset"] | "DCR";
   onAssetChange?: (value: Loan["borrowAsset"]) => void;
   help: string;
+  presets: number[];
 }) {
   return (
     <label className="block rounded-2xl border border-[#dbe7e2] bg-white p-4 shadow-sm">
@@ -275,8 +302,48 @@ function AssetAmountCard({
           <span className="rounded-full border border-[#cddbd5] bg-[#f7faf9] px-4 py-2 text-sm font-semibold">{asset}</span>
         )}
       </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {presets.map((preset) => (
+          <button
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${value === preset ? "border-[#2970ff] bg-[#eef4ff] text-[#2970ff]" : "border-[#dbe7e2] bg-[#f7faf9] text-[#5f716a]"}`}
+            key={preset}
+            onClick={(event) => {
+              event.preventDefault();
+              onChange(preset);
+            }}
+            type="button"
+          >
+            {preset.toLocaleString()} {asset}
+          </button>
+        ))}
+      </div>
       <span className="mt-2 block text-xs text-[#6b7b74]">{help}</span>
     </label>
+  );
+}
+
+function LtvMeter({ quote }: { quote: Quote }) {
+  const ltvPercent = Math.min(quote.ltvBps / 100, 100);
+  return (
+    <div className="mt-6 rounded-2xl border border-[#dbe7e2] bg-[#f7faf9] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-[#5f716a]">Loan-to-value</p>
+          <p className="text-3xl font-semibold tracking-[-0.04em]">{formatBps(quote.ltvBps)}</p>
+        </div>
+        <RiskBadge ltvBps={quote.ltvBps} />
+      </div>
+      <div className="relative mt-5 h-4 overflow-hidden rounded-full bg-[#d9e4df]">
+        <div className="absolute inset-y-0 left-[50%] w-px bg-white/80" />
+        <div className="absolute inset-y-0 left-[77%] w-px bg-white/80" />
+        <div className={ltvBarClass(quote.ltvBps)} style={{ width: `${ltvPercent}%` }} />
+      </div>
+      <div className="mt-2 flex justify-between text-xs font-medium text-[#6b7b74]">
+        <span>0%</span>
+        <span>35% target</span>
+        <span>70% liquidation</span>
+      </div>
+    </div>
   );
 }
 
@@ -296,6 +363,15 @@ function MiniPanel({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-[#dbe7e2] bg-white p-3">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">{label}</p>
       <p className="mt-1 truncate text-lg font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-[#5f716a]">{label}</span>
+      <span className={strong ? "text-base font-semibold text-[#091440]" : "font-medium text-[#091440]"}>{value}</span>
     </div>
   );
 }
@@ -326,9 +402,9 @@ function TrustItem({ icon: Icon, label, text }: { icon: React.ComponentType<{ cl
 }
 
 function ltvBarClass(ltvBps: number): string {
-  if (ltvBps >= 6000) return "h-3 rounded-full bg-[#ed6d47]";
-  if (ltvBps >= 4500) return "h-3 rounded-full bg-[#f2b84b]";
-  return "h-3 rounded-full bg-[#2ed6a1]";
+  if (ltvBps >= 6000) return "h-4 rounded-full bg-[#ed6d47]";
+  if (ltvBps >= 4500) return "h-4 rounded-full bg-[#f2b84b]";
+  return "h-4 rounded-full bg-[#2ed6a1]";
 }
 
 function buildPreviewQuote(
