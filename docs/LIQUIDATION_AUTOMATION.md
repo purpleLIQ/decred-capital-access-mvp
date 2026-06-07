@@ -46,15 +46,15 @@ The policy can return:
 - `queue_review`
 - `auto_liquidate`
 
-`auto_liquidate` is only allowed when the hard threshold is crossed and all guardrails pass.
+`auto_liquidate` is only a policy decision. It is allowed when the hard threshold is crossed and all guardrails pass, but it must still queue a transaction review and cannot sign or broadcast from the server.
 
 ## Next Implementation Steps
 
 1. Persist warning timestamps on loans or events.
 2. Add a liquidation watcher job that evaluates open loans.
 3. Add exchange/DEX depth estimation.
-4. Build unsigned liquidation transaction previews on simnet.
-5. Add transaction review UI.
+4. Queue liquidation transaction review records automatically.
+5. Build unsigned liquidation transaction previews on simnet.
 6. Add non-custodial signing flow.
 7. Add production alerting for failed automation or degraded oracle state.
 

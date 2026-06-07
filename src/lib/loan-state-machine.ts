@@ -96,7 +96,7 @@ function eventMessage(action: LoanAction, from: LoanStatus, to: LoanStatus): str
     simulate_repayment: "Demo repayment was detected at the repayment target.",
     release_collateral: "Collateral release workflow advanced toward borrower return.",
     mark_margin_warning: "Loan moved into margin warning for borrower/operator attention.",
-    start_liquidation_review: "Loan entered manual liquidation review.",
+    start_liquidation_review: "Loan entered review-gated liquidation workflow.",
     mark_defaulted: "Loan was marked defaulted after missing required remediation.",
     complete_liquidation: "Manual liquidation workflow advanced.",
     cancel: "Loan was canceled before funding.",

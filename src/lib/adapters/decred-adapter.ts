@@ -4,6 +4,7 @@ import type { DecredLendingAdapter, TransactionPurpose, TransactionReview } from
 export class DemoDecredAdapter implements DecredLendingAdapter {
   readonly mode = "demo" as const;
   readonly canSign = false;
+  readonly canBroadcast = false;
 
   createEscrowPreview(seed: string): EscrowPreview {
     const suffix = seed.replace(/[^a-z0-9]/gi, "").slice(-8).padStart(8, "0");

@@ -49,4 +49,23 @@ Do not move toward real funds until all of these are complete:
 - Transaction review screen added before signing.
 - No private keys stored server-side or in SQLite.
 - Oracle degradation behavior blocks automated loan activation.
+- Liquidation watcher queues review automatically when thresholds are crossed.
+- Transaction reviews are monitored for stuck or failed states.
+- Signing and broadcast are still separated from app-owned server custody.
 - Legal/compliance review completed for target launch regions.
+
+## Transaction Review Operations
+
+The console can generate blocked transaction reviews for collateral deposit, payout, release, and liquidation. Reviews are operational evidence, not signed transactions.
+
+Monitor:
+
+- pending transaction reviews,
+- blocker reasons,
+- missing approval roles,
+- liquidation policy blockers,
+- failed review generation,
+- stale review age,
+- review-to-signing attempts.
+
+Any review that reaches `ready_for_signing` in a future simnet branch must still be signed outside the app-owned server process.

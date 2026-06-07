@@ -9,10 +9,11 @@ This repo is intentionally beginner-friendly and handoff-ready. Demo mode does n
 - Quote creation for DCR collateral and USDC/USDT/BTC borrow assets.
 - Demo loan creation with a fake 2-of-3 Decred escrow preview.
 - Persistent local SQLite database at `data/demo.sqlite`.
-- Loan status, repayment, release, operator, liquidation-review, market, and docs screens.
+- Loan status, repayment, release, operator, transaction-review, liquidation-review, market, and docs screens.
+- Blocked transaction review envelopes for deposit, payout, release, and liquidation.
 - Live market adapters for Kraken, DCRDEX, CoinGecko, and CoinPaprika where reachable.
 - Seeded demo loans and events.
-- Unit tests for LTV/risk logic and the loan state machine.
+- Unit tests for LTV/risk logic, loan state machine, liquidation policy, adapter boundaries, API schemas, and transaction review.
 
 ## Quick Start
 
@@ -37,9 +38,7 @@ http://localhost:3000
 Run checks:
 
 ```bash
-npm test
-npm run lint
-npm run build
+npm run verify
 ```
 
 ## Demo Flow
@@ -49,9 +48,10 @@ npm run build
 3. Create a demo loan.
 4. Use the Status screen to inspect escrow and activity.
 5. Use Operator mode to detect collateral and approve/fund.
-6. Use Repay to simulate repayment and collateral release.
-7. Use Market to inspect DCR price/liquidity assumptions.
-8. Use Docs to review the trust model and research sources.
+6. Use Tx review to generate blocked review previews before any future signing work.
+7. Use Repay to simulate repayment and collateral release.
+8. Use Market to inspect DCR price/liquidity assumptions.
+9. Use Docs to review the trust model and research sources.
 
 ## What Is Real vs Simulated
 
@@ -60,6 +60,7 @@ Real:
 - App structure, API routes, state machine, quote/risk math, docs, tests, local persistence.
 - Public market-data calls to Kraken, DCRDEX, CoinGecko, and CoinPaprika.
 - Research-backed design for Decred 2-of-3 escrow.
+- Transaction-review safety model and tests proving demo/simnet reviews remain blocked.
 
 Simulated:
 
@@ -72,6 +73,7 @@ Not included yet:
 
 - Real borrower wallet connection.
 - Real dcrwallet/dcrd simnet signing.
+- Real unsigned Decred transaction builder.
 - Mainnet support.
 - Custody/legal/compliance workflows.
 
@@ -84,9 +86,12 @@ src/lib/adapters/      Decred, DCRDEX, Kraken adapters
 src/lib/               State machine, oracle, fixtures, SQLite store
 src/lib/__tests__/     Unit tests
 docs/                  User, operator, risk, and ticket-collateral docs
+docs/TRANSACTION_REVIEW.md  Transaction-review boundary and readiness rules
+docs/SIMNET_PROOF_PLAN.md   Required simnet proof path
+docs/TESTNET_READINESS.md   Testnet readiness checklist
 AI_HANDOFF.md          Give-this-to-another-AI continuation brief
 RESEARCH.md            Source-backed research notes
-ROADMAP.md             Phase 0 through Phase 7 plan
+ROADMAP.md             Phase 1 through Phase 7 production-readiness plan
 ```
 
 ## Mainnet Caution
@@ -94,9 +99,11 @@ ROADMAP.md             Phase 0 through Phase 7 plan
 This is not production lending software. Before any real funds:
 
 - Prove 2-of-3 DCR multisig in simnet using separate wallets.
-- Add authenticated signing and transaction-review workflows.
+- Add simnet unsigned transaction builders.
+- Add authenticated non-custodial signing workflows.
 - Add secure key custody procedures.
 - Add stronger oracle and liquidation controls.
+- Prove liquidation watcher and review queue automation.
 - Run legal/compliance review.
 - Cap loan size aggressively.
 

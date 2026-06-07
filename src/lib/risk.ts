@@ -60,7 +60,7 @@ export function buildQuote(input: {
     warnings.push("This quote is above the 35% demo LTV target.");
   }
   if (input.market.dcrdexStableBookEmpty) {
-    warnings.push("DCRDEX stablecoin liquidity is thin, so liquidation remains manual in v1.");
+    warnings.push("DCRDEX stablecoin liquidity is thin, so liquidation automation remains review-gated in v1.");
   }
   if (input.borrowAsset !== protocolConfig.recommendedBorrowAsset) {
     warnings.push("USDC is the recommended demo borrow asset; other assets are roadmap items.");

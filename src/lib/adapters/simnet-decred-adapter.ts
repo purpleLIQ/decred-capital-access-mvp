@@ -5,6 +5,7 @@ import { DemoDecredAdapter } from "./decred-adapter";
 export class SimnetDecredAdapter implements DecredLendingAdapter {
   readonly mode = "simnet" as const;
   readonly canSign = false;
+  readonly canBroadcast = false;
   private readonly previewAdapter = new DemoDecredAdapter();
 
   createEscrowPreview(seed: string): EscrowPreview {

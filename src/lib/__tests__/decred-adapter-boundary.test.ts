@@ -10,6 +10,8 @@ describe("Decred adapter safety boundary", () => {
 
     expect(adapter.mode).toBe("demo");
     expect(adapter.canSign).toBe(false);
+    expect(adapter.canBroadcast).toBe(false);
+    expect("broadcastTransaction" in adapter).toBe(false);
     expect(review.status).toBe("blocked");
     expect(review.unsignedTransaction).toBeNull();
     expect(review.blockers).toContain("No signing operation is allowed in demo mode.");
@@ -21,8 +23,11 @@ describe("Decred adapter safety boundary", () => {
 
     expect(adapter.mode).toBe("simnet");
     expect(adapter.canSign).toBe(false);
+    expect(adapter.canBroadcast).toBe(false);
+    expect("broadcastTransaction" in adapter).toBe(false);
     expect(review.status).toBe("blocked");
     expect(review.network).toBe("simnet");
+    expect(review.unsignedTransaction?.rawTransactionHex ?? null).toBeNull();
     expect(review.blockers).toContain("Unsigned transaction builder is not implemented.");
   });
 

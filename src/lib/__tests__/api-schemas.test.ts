@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSchemaError, loanActionSchema, loanInputSchema } from "../api-schemas";
+import { formatSchemaError, loanActionSchema, loanInputSchema, transactionReviewRequestSchema } from "../api-schemas";
 
 describe("API request schemas", () => {
   it("coerces valid loan inputs and defaults to USDC", () => {
@@ -27,5 +27,39 @@ describe("API request schemas", () => {
   it("accepts known loan actions and rejects unknown actions", () => {
     expect(loanActionSchema.safeParse({ loanId: "loan_123", action: "simulate_repayment" }).success).toBe(true);
     expect(loanActionSchema.safeParse({ loanId: "loan_123", action: "steal_collateral" }).success).toBe(false);
+  });
+
+  it("accepts valid transaction review requests with default approval state", () => {
+    const parsed = transactionReviewRequestSchema.parse({
+      loanId: "loan_123",
+      purpose: "collateral_release",
+    });
+
+    expect(parsed).toEqual({
+      loanId: "loan_123",
+      purpose: "collateral_release",
+      network: "demo",
+      approvals: {
+        borrower: false,
+        lender: false,
+        arbiter: false,
+        operator: false,
+      },
+    });
+  });
+
+  it("rejects invalid transaction review purpose and missing loan ID", () => {
+    expect(transactionReviewRequestSchema.safeParse({ loanId: "loan_123", purpose: "mint_money" }).success).toBe(false);
+    expect(transactionReviewRequestSchema.safeParse({ loanId: "", purpose: "loan_payout" }).success).toBe(false);
+  });
+
+  it("rejects non-boolean transaction review approvals", () => {
+    expect(
+      transactionReviewRequestSchema.safeParse({
+        loanId: "loan_123",
+        purpose: "loan_payout",
+        approvals: { lender: "false", operator: true },
+      }).success,
+    ).toBe(false);
   });
 });

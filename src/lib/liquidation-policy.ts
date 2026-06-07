@@ -14,6 +14,9 @@ export interface LiquidationContext {
 export interface LiquidationDecision {
   action: LiquidationAutomationAction;
   automationAllowed: boolean;
+  requiresTransactionReview: boolean;
+  signingAllowed: false;
+  broadcastAllowed: false;
   reasons: string[];
   blockers: string[];
 }
@@ -28,6 +31,9 @@ export function evaluateLiquidationAutomation(context: LiquidationContext): Liqu
     return {
       action: "none",
       automationAllowed: false,
+      requiresTransactionReview: false,
+      signingAllowed: false,
+      broadcastAllowed: false,
       reasons: ["Loan is below the warning threshold."],
       blockers: [],
     };
@@ -57,6 +63,9 @@ export function evaluateLiquidationAutomation(context: LiquidationContext): Liqu
     return {
       action: "auto_liquidate",
       automationAllowed: true,
+      requiresTransactionReview: true,
+      signingAllowed: false,
+      broadcastAllowed: false,
       reasons,
       blockers,
     };
@@ -66,6 +75,9 @@ export function evaluateLiquidationAutomation(context: LiquidationContext): Liqu
     return {
       action: "queue_review",
       automationAllowed: false,
+      requiresTransactionReview: true,
+      signingAllowed: false,
+      broadcastAllowed: false,
       reasons,
       blockers,
     };
@@ -74,6 +86,9 @@ export function evaluateLiquidationAutomation(context: LiquidationContext): Liqu
   return {
     action: "warn",
     automationAllowed: false,
+    requiresTransactionReview: false,
+    signingAllowed: false,
+    broadcastAllowed: false,
     reasons,
     blockers,
   };
