@@ -16,6 +16,12 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
+import {
+  buildPreviewQuote,
+  calculateBorrowFromLtv,
+  calculateCollateralFromBorrow,
+  calculateLtvBpsFromValues,
+} from "@/lib/quote-math";
 import { formatBps } from "@/lib/risk";
 import type { Loan, MarketSnapshot, Quote } from "@/lib/types";
 
@@ -31,15 +37,23 @@ type DemoPayload = {
 
 const borrowPresets = [250, 350, 500, 750];
 const collateralPresets = [50, 100, 150, 250];
+const initialDcrUsd = 12.13;
+const initialCollateralDcr = 100;
+const initialBorrowAmount = 350;
 
 export function BorrowFlow() {
   const [payload, setPayload] = useState<DemoPayload | null>(null);
-  const [collateralDcr, setCollateralDcr] = useState(100);
-  const [borrowAmount, setBorrowAmount] = useState(350);
+  const [collateralDcr, setCollateralDcr] = useState(initialCollateralDcr);
+  const [borrowAmount, setBorrowAmount] = useState(initialBorrowAmount);
+  const [targetLtvBps, setTargetLtvBps] = useState(
+    calculateLtvBpsFromValues(initialBorrowAmount, initialCollateralDcr, initialDcrUsd),
+  );
   const [borrowAsset, setBorrowAsset] = useState<Loan["borrowAsset"]>("USDC");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const dcrUsd = payload?.market.dcrUsd ?? initialDcrUsd;
 
   async function refresh() {
     const response = await fetch("/api/demo", { cache: "no-store" });
@@ -53,19 +67,41 @@ export function BorrowFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function updateBorrowAmount(value: number) {
-    setBorrowAmount(value);
+  function clearLiveQuote() {
     setQuote(null);
+    setNotice(null);
+  }
+
+  function updateBorrowAmount(value: number) {
+    const nextBorrowAmount = safeNumber(value);
+    setBorrowAmount(nextBorrowAmount);
+    setTargetLtvBps(calculateLtvBpsFromValues(nextBorrowAmount, collateralDcr, dcrUsd));
+    clearLiveQuote();
   }
 
   function updateCollateralDcr(value: number) {
-    setCollateralDcr(value);
-    setQuote(null);
+    const nextCollateralDcr = safeNumber(value);
+    setCollateralDcr(nextCollateralDcr);
+    setTargetLtvBps(calculateLtvBpsFromValues(borrowAmount, nextCollateralDcr, dcrUsd));
+    clearLiveQuote();
   }
 
   function updateBorrowAsset(value: Loan["borrowAsset"]) {
     setBorrowAsset(value);
-    setQuote(null);
+    clearLiveQuote();
+  }
+
+  function updateLtv(value: number) {
+    const nextLtvBps = Math.max(0, Math.min(7000, Math.round(value)));
+    setTargetLtvBps(nextLtvBps);
+    setBorrowAmount(calculateBorrowFromLtv(collateralDcr, dcrUsd, nextLtvBps));
+    clearLiveQuote();
+  }
+
+  function updateCollateralForCurrentBorrow() {
+    const nextCollateral = calculateCollateralFromBorrow(borrowAmount, dcrUsd, targetLtvBps || 3500);
+    setCollateralDcr(nextCollateral);
+    clearLiveQuote();
   }
 
   async function createQuote() {
@@ -80,6 +116,7 @@ export function BorrowFlow() {
       const nextQuote = await response.json();
       if (!response.ok) throw new Error(nextQuote.error);
       setQuote(nextQuote);
+      setTargetLtvBps(nextQuote.ltvBps);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Quote failed.");
     } finally {
@@ -107,7 +144,7 @@ export function BorrowFlow() {
     }
   }
 
-  const preview = quote ?? buildPreviewQuote(collateralDcr, borrowAmount, borrowAsset, payload?.market.dcrUsd ?? 12.13);
+  const preview = quote ?? buildPreviewQuote({ collateralDcr, borrowAmount, borrowAsset, dcrUsd });
   const activeLoans = payload?.loans.filter((loan) => ["funded", "active", "repayment_pending"].includes(loan.status)).length ?? 0;
   const marketReady = Boolean(payload && payload.market.sourceCount >= 2 && !payload.market.stale);
   const monthlyInterest = Number((preview.borrowAmount * (preview.estimatedAprBps / 10000 / 12)).toFixed(2));
@@ -155,7 +192,7 @@ export function BorrowFlow() {
               Borrow USDC. Keep your DCR.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-white/68">
-              Post DCR collateral, review the terms, then move to the console for escrow steps. Real signing waits for simnet.
+              Pick a target LTV, adjust either field, and review the loan math before escrow steps begin.
             </p>
 
             <div className="mt-8 rounded-2xl border border-[#70cbff]/15 bg-[#091440]/65 p-4 font-mono text-xs text-[#9bdfff] shadow-xl shadow-black/20" id="market">
@@ -184,7 +221,7 @@ export function BorrowFlow() {
               <div className="space-y-4 p-4 sm:p-5">
                 <AssetAmountCard label="Borrow" value={borrowAmount} onChange={updateBorrowAmount} asset={borrowAsset} onAssetChange={updateBorrowAsset} help="Recommended: USDC" presets={borrowPresets} />
                 <AssetAmountCard label="Collateral" value={collateralDcr} onChange={updateCollateralDcr} asset="DCR" help={payload ? `${currency(payload.market.dcrUsd)} per DCR` : "Loading DCR/USD"} presets={collateralPresets} />
-                <LtvMeter quote={preview} />
+                <LtvMeter quote={preview} targetLtvBps={targetLtvBps} onChange={updateLtv} onSetCollateral={updateCollateralForCurrentBorrow} />
 
                 <div className="grid gap-3 sm:grid-cols-3">
                   <MiniPanel label="Collateral" value={currency(preview.collateralUsd)} />
@@ -270,7 +307,7 @@ function AssetAmountCard({ label, value, onChange, asset, onAssetChange, help, p
   );
 }
 
-function LtvMeter({ quote }: { quote: Quote }) {
+function LtvMeter({ quote, targetLtvBps, onChange, onSetCollateral }: { quote: Quote; targetLtvBps: number; onChange: (value: number) => void; onSetCollateral: () => void }) {
   const ltvPercent = Math.min(quote.ltvBps / 100, 100);
   return (
     <div className="rounded-2xl border border-[#dbe7e2] bg-[#f7faf9] p-4">
@@ -281,16 +318,31 @@ function LtvMeter({ quote }: { quote: Quote }) {
         </div>
         <RiskBadge ltvBps={quote.ltvBps} />
       </div>
-      <div className="relative mt-5 h-4 overflow-hidden rounded-full bg-[#d9e4df]">
-        <div className="absolute inset-y-0 left-[50%] w-px bg-white/80" />
-        <div className="absolute inset-y-0 left-[77%] w-px bg-white/80" />
-        <div className={ltvBarClass(quote.ltvBps)} style={{ width: `${ltvPercent}%` }} />
+      <div className="mt-5">
+        <input
+          aria-label="Loan-to-value"
+          className="h-2 w-full cursor-pointer accent-[#2970ff]"
+          max="7000"
+          min="0"
+          onChange={(event) => onChange(Number(event.target.value))}
+          step="50"
+          type="range"
+          value={Math.min(targetLtvBps, 7000)}
+        />
+        <div className="relative mt-4 h-4 overflow-hidden rounded-full bg-[#d9e4df]">
+          <div className="absolute inset-y-0 left-[50%] w-px bg-white/80" />
+          <div className="absolute inset-y-0 left-[77%] w-px bg-white/80" />
+          <div className={ltvBarClass(quote.ltvBps)} style={{ width: `${ltvPercent}%` }} />
+        </div>
       </div>
       <div className="mt-2 grid grid-cols-3 text-xs font-medium text-[#6b7b74]">
         <span>0%</span>
         <span className="text-center">35% target</span>
         <span className="text-right">70% call</span>
       </div>
+      <button className="mt-3 text-xs font-semibold text-[#2970ff] hover:text-[#1d5fe8]" onClick={onSetCollateral} type="button">
+        Adjust DCR collateral to keep this LTV
+      </button>
     </div>
   );
 }
@@ -354,33 +406,15 @@ function ltvBarClass(ltvBps: number): string {
   return "h-4 rounded-full bg-[#2ed6a1]";
 }
 
-function buildPreviewQuote(collateralDcr: number, borrowAmount: number, borrowAsset: Loan["borrowAsset"], dcrUsd: number): Quote {
-  const collateralUsd = Number((collateralDcr * dcrUsd).toFixed(2));
-  const ltvBps = collateralUsd > 0 ? Math.round((borrowAmount / collateralUsd) * 10000) : 0;
-  const warnings: string[] = [];
-  if (ltvBps > 3500) warnings.push("Above the 35% target LTV.");
-  if (borrowAsset !== "USDC") warnings.push("USDC is the recommended demo asset.");
-
-  return {
-    collateralDcr,
-    borrowAmount,
-    borrowAsset,
-    dcrUsd,
-    collateralUsd,
-    ltvBps,
-    maxBorrowAt35Ltv: Number((collateralUsd * 0.35).toFixed(2)),
-    liquidationThresholdBps: 7000,
-    originationFee: Number((borrowAmount * 0.01).toFixed(2)),
-    estimatedAprBps: 1450,
-    warnings,
-  };
-}
-
 function cleanWarning(warning: string): string {
   return warning
     .replace("This quote is above the 35% demo LTV target.", "Above the 35% target LTV.")
     .replace("USDC is the recommended demo borrow asset; other assets are roadmap items.", "USDC is the recommended demo asset.")
     .replace("Oracle health is degraded; keep this quote in demo mode until pricing is reviewed.", "Oracle needs review before real lending.");
+}
+
+function safeNumber(value: number): number {
+  return Number.isFinite(value) ? Math.max(value, 0) : 0;
 }
 
 function currency(value: number): string {
