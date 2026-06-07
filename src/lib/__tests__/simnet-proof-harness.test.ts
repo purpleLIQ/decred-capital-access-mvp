@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const rootDir = process.cwd();
 const checkConfigScript = readFileSync(join(rootDir, "scripts/simnet-proof/check-config.mjs"), "utf8");
 const probeRpcScript = readFileSync(join(rootDir, "scripts/simnet-proof/probe-rpc.mjs"), "utf8");
+const escrowUtxoInspectorScript = readFileSync(join(rootDir, "scripts/simnet-proof/inspect-escrow-utxos.mjs"), "utf8");
 const unsignedPreviewScript = readFileSync(join(rootDir, "scripts/simnet-proof/build-unsigned-preview.mjs"), "utf8");
 
 describe("simnet proof harness safety boundary", () => {
@@ -12,6 +13,7 @@ describe("simnet proof harness safety boundary", () => {
     for (const method of ["sendrawtransaction", "signrawtransaction", "walletpassphrase", "importprivkey", "dumpprivkey"]) {
       expect(checkConfigScript).toContain(method);
       expect(probeRpcScript).toContain(method);
+      expect(escrowUtxoInspectorScript).toContain(method);
       expect(unsignedPreviewScript).toContain(method);
     }
   });
@@ -23,6 +25,14 @@ describe("simnet proof harness safety boundary", () => {
     expect(probeRpcScript).not.toContain('method: "signrawtransaction"');
   });
 
+  it("limits the escrow UTXO inspector to read-only wallet methods", () => {
+    expect(escrowUtxoInspectorScript).toContain('allowedMethods = new Set(["listunspent"]');
+    expect(escrowUtxoInspectorScript).toContain('"listunspent"');
+    expect(escrowUtxoInspectorScript).not.toContain('method: "createrawtransaction"');
+    expect(escrowUtxoInspectorScript).not.toContain('method: "sendrawtransaction"');
+    expect(escrowUtxoInspectorScript).not.toContain('method: "signrawtransaction"');
+  });
+
   it("limits the unsigned preview CLI to unsigned transaction construction", () => {
     expect(unsignedPreviewScript).toContain('allowedMethods = new Set(["listunspent", "createrawtransaction"]');
     expect(unsignedPreviewScript).toContain('"createrawtransaction"');
@@ -32,7 +42,7 @@ describe("simnet proof harness safety boundary", () => {
   });
 
   it("does not include private-key, signing, or broadcast command helpers", () => {
-    for (const script of [checkConfigScript, probeRpcScript, unsignedPreviewScript]) {
+    for (const script of [checkConfigScript, probeRpcScript, escrowUtxoInspectorScript, unsignedPreviewScript]) {
       expect(script).not.toContain("walletpassphrase ");
       expect(script).not.toContain("signrawtransaction ");
       expect(script).not.toContain("sendrawtransaction ");
