@@ -7,6 +7,7 @@ export const protocolConfig = {
   watchLtvBps: 4500,
   warningLtvBps: 6000,
   liquidationLtvBps: 7000,
+  hardLiquidationLtvBps: 8000,
   originationFeeBps: 100,
   estimatedAprBps: 1450,
   defaultTermDays: 30,
@@ -14,6 +15,10 @@ export const protocolConfig = {
   maxPriceDivergenceBps: 800,
   oracleRequestTimeoutMs: 3500,
   maxOracleWarningsForHealthy: 2,
+  liquidationGracePeriodMinutes: 30,
+  minLiquidationDexDepthUsd: 5000,
+  maxLiquidationSlippageBps: 250,
+  automationRequiresHealthyOracle: true,
 } as const;
 
 export type ProtocolConfig = typeof protocolConfig;
