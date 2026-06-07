@@ -1,6 +1,6 @@
 # Simnet Proof Runbook
 
-This runbook is for the first real-network proof path. It is intentionally limited to configuration checks, read-only RPC probing, escrow UTXO inspection, and unsigned transaction preview construction.
+This runbook is for the first real-network proof path. It is intentionally limited to configuration checks, read-only RPC probing, escrow UTXO inspection, unsigned transaction preview construction, and offline artifact validation.
 
 ## Boundary
 
@@ -11,7 +11,8 @@ Allowed in this phase:
 - verify required environment variables,
 - probe wallet RPC reachability with `listunspent`,
 - inspect whether escrow UTXOs exist,
-- build unsigned release/liquidation preview artifacts with `createrawtransaction`.
+- build unsigned release/liquidation preview artifacts with `createrawtransaction`,
+- validate local JSON proof artifacts offline.
 
 Not allowed in this phase:
 
@@ -82,6 +83,12 @@ Build an unsigned simnet preview artifact:
 npm run simnet:build-unsigned-preview
 ```
 
+Validate local proof artifacts offline:
+
+```bash
+npm run simnet:validate-artifacts
+```
+
 Run the normal project verification suite:
 
 ```bash
@@ -96,6 +103,7 @@ Capture these in a local proof log or PR comment when simnet is running:
 - `npm run simnet:probe-rpc` output,
 - `npm run simnet:inspect-escrow-utxos` output,
 - `npm run simnet:build-unsigned-preview` output,
+- `npm run simnet:validate-artifacts` output,
 - wallet role mapping,
 - escrow address used for the test loan,
 - UTXO count and confirmation status,
