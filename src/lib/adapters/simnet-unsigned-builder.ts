@@ -53,7 +53,7 @@ export class StaticSimnetUnsignedTransactionBuilder implements SimnetUnsignedTra
     const estimatedFeeDcr = input.estimatedFeeDcr ?? this.options.estimatedFeeDcr ?? 0.001;
     const blockers = validateUnsignedBuildInput({ ...input, rawTransactionHex });
 
-    if (blockers.length > 0) {
+    if (blockers.length > 0 || !rawTransactionHex) {
       return {
         unsignedTransaction: null,
         blockers,
