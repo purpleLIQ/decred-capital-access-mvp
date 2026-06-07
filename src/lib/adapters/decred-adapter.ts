@@ -1,7 +1,11 @@
 import type { EscrowPreview, Loan } from "../types";
+import type { DecredLendingAdapter, TransactionPurpose, TransactionReview } from "./decred-types";
 
-export class DecredAdapter {
-  createDemoEscrow(seed: string): EscrowPreview {
+export class DemoDecredAdapter implements DecredLendingAdapter {
+  readonly mode = "demo" as const;
+  readonly canSign = false;
+
+  createEscrowPreview(seed: string): EscrowPreview {
     const suffix = seed.replace(/[^a-z0-9]/gi, "").slice(-8).padStart(8, "0");
 
     return {
@@ -21,6 +25,10 @@ export class DecredAdapter {
     };
   }
 
+  createDemoEscrow(seed: string): EscrowPreview {
+    return this.createEscrowPreview(seed);
+  }
+
   getLoanEscrowChecklist(loan: Loan): string[] {
     return [
       `Escrow address: ${loan.escrowAddress}`,
@@ -30,6 +38,25 @@ export class DecredAdapter {
       "Any release or liquidation needs two of borrower, lender, and arbiter signatures.",
     ];
   }
+
+  createTransactionReview(loan: Loan, purpose: TransactionPurpose): TransactionReview {
+    return {
+      id: `txreview_${loan.id}_${purpose}`,
+      loanId: loan.id,
+      purpose,
+      status: "blocked",
+      network: this.mode,
+      summary: "Demo mode can preview the transaction workflow, but it cannot build or sign a real Decred transaction.",
+      unsignedTransaction: null,
+      requiredApprovals: ["Borrower", "Lender", "Arbiter or operator"],
+      blockers: [
+        "Demo adapter is not connected to dcrd or dcrwallet.",
+        "No raw transaction has been built.",
+        "No signing operation is allowed in demo mode.",
+      ],
+      createdAt: new Date().toISOString(),
+    };
+  }
 }
 
-export const decredAdapter = new DecredAdapter();
+export const decredAdapter = new DemoDecredAdapter();
