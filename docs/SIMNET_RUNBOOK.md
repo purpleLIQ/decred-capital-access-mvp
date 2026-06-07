@@ -1,6 +1,6 @@
 # Simnet Proof Runbook
 
-This runbook is for the first real-network proof path. It is intentionally limited to configuration checks, read-only RPC probing, and unsigned transaction preview construction.
+This runbook is for the first real-network proof path. It is intentionally limited to configuration checks, read-only RPC probing, escrow UTXO inspection, and unsigned transaction preview construction.
 
 ## Boundary
 
@@ -35,36 +35,9 @@ Each wallet must have its own RPC URL, user, password, and certificate path if T
 
 ## Environment
 
-Start from `.env.example` and set only local simnet values:
+Start from `.env.example` and set only local simnet values. For Windows and PowerShell, see `docs/WINDOWS_SIMNET_SETUP.md` and `scripts/simnet-proof/env-template.ps1`.
 
-```bash
-DCR_SIMNET_ENABLED=true
-
-DCRD_SIMNET_RPC_URL=http://127.0.0.1:19556
-DCRD_SIMNET_RPC_USER=...
-DCRD_SIMNET_RPC_PASSWORD=...
-DCRD_SIMNET_RPC_CERT_PATH=...
-
-DCRWALLET_SIMNET_BORROWER_RPC_URL=http://127.0.0.1:19557
-DCRWALLET_SIMNET_BORROWER_RPC_USER=...
-DCRWALLET_SIMNET_BORROWER_RPC_PASSWORD=...
-DCRWALLET_SIMNET_BORROWER_RPC_CERT_PATH=...
-DCRWALLET_SIMNET_BORROWER_ACCOUNT=...
-
-DCRWALLET_SIMNET_LENDER_RPC_URL=http://127.0.0.1:19558
-DCRWALLET_SIMNET_LENDER_RPC_USER=...
-DCRWALLET_SIMNET_LENDER_RPC_PASSWORD=...
-DCRWALLET_SIMNET_LENDER_RPC_CERT_PATH=...
-DCRWALLET_SIMNET_LENDER_ACCOUNT=...
-
-DCRWALLET_SIMNET_ARBITER_RPC_URL=http://127.0.0.1:19559
-DCRWALLET_SIMNET_ARBITER_RPC_USER=...
-DCRWALLET_SIMNET_ARBITER_RPC_PASSWORD=...
-DCRWALLET_SIMNET_ARBITER_RPC_CERT_PATH=...
-DCRWALLET_SIMNET_ARBITER_ACCOUNT=...
-```
-
-Unsigned preview commands also need proof-specific values:
+Unsigned preview and escrow inspection commands need proof-specific values:
 
 ```bash
 SIMNET_PREVIEW_PURPOSE=collateral_release
@@ -76,6 +49,7 @@ SIMNET_PREVIEW_DESTINATION_ADDRESS=...
 SIMNET_PREVIEW_FEE_DCR=0.001
 SIMNET_PREVIEW_MIN_CONFIRMATIONS=1
 SIMNET_PREVIEW_OUTPUT_PATH=artifacts/simnet/unsigned-release-preview.json
+SIMNET_UTXO_INSPECTOR_OUTPUT_PATH=artifacts/simnet/escrow-utxos.json
 ```
 
 For liquidation previews, use `SIMNET_PREVIEW_PURPOSE=liquidation`. Release previews use the borrower wallet RPC role. Liquidation previews use the lender wallet RPC role.
@@ -96,6 +70,12 @@ Probe wallet RPC reachability using read-only wallet calls:
 npm run simnet:probe-rpc
 ```
 
+Inspect the configured escrow address UTXOs:
+
+```bash
+npm run simnet:inspect-escrow-utxos
+```
+
 Build an unsigned simnet preview artifact:
 
 ```bash
@@ -114,6 +94,7 @@ Capture these in a local proof log or PR comment when simnet is running:
 
 - `npm run simnet:check-config` output,
 - `npm run simnet:probe-rpc` output,
+- `npm run simnet:inspect-escrow-utxos` output,
 - `npm run simnet:build-unsigned-preview` output,
 - wallet role mapping,
 - escrow address used for the test loan,
