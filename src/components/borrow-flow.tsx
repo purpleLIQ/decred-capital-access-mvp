@@ -338,8 +338,15 @@ function LtvMeter({ quote, targetLtvBps, onChange, onSetCollateral }: { quote: Q
         <span className="text-center">35% target</span>
         <span className="text-right">70% call</span>
       </div>
-      <button className="mt-3 text-xs font-semibold text-[#2970ff] hover:text-[#1d5fe8]" onClick={onSetCollateral} type="button">
-        Adjust DCR collateral to keep this LTV
+      <button
+        className="mt-3 inline-flex h-9 items-center gap-2 rounded-full border border-[#2970ff]/35 bg-[#eef4ff] px-3 text-xs font-semibold text-[#2970ff] shadow-sm transition hover:border-[#2970ff] hover:bg-white hover:text-[#1d5fe8]"
+        onClick={onSetCollateral}
+        type="button"
+      >
+        <span className="relative h-4 w-7 rounded-full bg-[#2970ff]/20">
+          <span className="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-[#2970ff] shadow-sm" />
+        </span>
+        Adjust DCR collateral
       </button>
     </div>
   );
