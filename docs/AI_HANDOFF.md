@@ -56,15 +56,20 @@ npm run verify
 
 ## Simnet Proof Harness
 
-Current branch work adds:
+Current harness commands:
+
+- `npm run simnet:check-config`
+- `npm run simnet:probe-rpc`
+- `npm run simnet:build-unsigned-preview`
+
+Harness files:
 
 - `scripts/simnet-proof/check-config.mjs`
 - `scripts/simnet-proof/probe-rpc.mjs`
-- `npm run simnet:check-config`
-- `npm run simnet:probe-rpc`
+- `scripts/simnet-proof/build-unsigned-preview.mjs`
 - `docs/SIMNET_RUNBOOK.md`
 
-The harness verifies config and read-only wallet RPC reachability only. It must not sign, unlock wallets, export/import keys, broadcast, or execute liquidation.
+The harness verifies config, read-only wallet RPC reachability, and unsigned preview construction only. It may call `listunspent` and `createrawtransaction`. It must not sign, unlock wallets, export/import keys, broadcast, or execute liquidation.
 
 ## Current Transaction Review Status
 
@@ -91,18 +96,16 @@ The review can move to signing only when status is `ready_for_signing`, blockers
 
 1. Run `npm run verify` on current `main`.
 2. Run the simnet harness against isolated local wallets.
-3. Prove the RPC-backed unsigned builder against isolated simnet wallets.
-4. Capture exact inputs, outputs, fees, redeem scripts, transaction IDs, and review envelope snapshots.
-5. Add non-custodial signing flow with borrower/lender/arbiter separation.
-6. Add a liquidation watcher job that queues transaction reviews automatically.
-7. Add notification and alert paths for warnings, failed jobs, stuck reviews, and degraded oracle/DEX state.
-8. Move from local SQLite to production database only after simnet proof.
-9. Add fee ledger and revenue/accounting dashboard.
-10. Do legal, threat-model, custody, and external security review before any real-money launch.
+3. Capture exact inputs, outputs, fees, redeem scripts, transaction IDs, and review envelope snapshots.
+4. Add non-custodial signing flow with borrower/lender/arbiter separation.
+5. Add a liquidation watcher job that queues transaction reviews automatically.
+6. Add notification and alert paths for warnings, failed jobs, stuck reviews, and degraded oracle/DEX state.
+7. Move from local SQLite to production database only after simnet proof.
+8. Add fee ledger and revenue/accounting dashboard.
+9. Do legal, threat-model, custody, and external security review before any real-money launch.
 
 ## Recommended Next Branches
 
-- `production/simnet-proof-harness`
 - `production/non-custodial-signing`
 - `production/liquidation-watcher`
 - `production/revenue-ledger`
