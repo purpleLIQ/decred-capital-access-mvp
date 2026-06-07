@@ -2,6 +2,10 @@ import type { EscrowPreview, Loan } from "../types";
 import type { DecredLendingAdapter, TransactionPurpose, TransactionReview } from "./decred-types";
 import { DemoDecredAdapter } from "./decred-adapter";
 import { readSimnetRpcConfig, type SimnetRpcConfig } from "./simnet-rpc-config";
+import {
+  BlockedSimnetUnsignedTransactionBuilder,
+  type SimnetUnsignedTransactionBuilder,
+} from "./simnet-unsigned-builder";
 
 export class SimnetDecredAdapter implements DecredLendingAdapter {
   readonly mode = "simnet" as const;
@@ -9,7 +13,10 @@ export class SimnetDecredAdapter implements DecredLendingAdapter {
   readonly canBroadcast = false;
   private readonly previewAdapter = new DemoDecredAdapter();
 
-  constructor(private readonly rpcConfig: SimnetRpcConfig = readSimnetRpcConfig()) {}
+  constructor(
+    private readonly rpcConfig: SimnetRpcConfig = readSimnetRpcConfig(),
+    private readonly unsignedBuilder: SimnetUnsignedTransactionBuilder = new BlockedSimnetUnsignedTransactionBuilder(),
+  ) {}
 
   createEscrowPreview(seed: string): EscrowPreview {
     return this.previewAdapter.createEscrowPreview(seed);
@@ -25,28 +32,44 @@ export class SimnetDecredAdapter implements DecredLendingAdapter {
   }
 
   createTransactionReview(loan: Loan, purpose: TransactionPurpose): TransactionReview {
-    const configBlockers = this.rpcConfig.readyForWalletRpc
-      ? ["Simnet RPC config is loaded, but no RPC transaction builder is connected yet."]
-      : this.rpcConfig.blockers;
+    const buildResult = this.buildUnsignedTransaction(loan, purpose);
+    const unsignedTransaction = buildResult.unsignedTransaction;
+    const blockers = [
+      ...buildResult.blockers,
+      "Signing must be performed outside the app-owned server process.",
+      "Broadcast remains disabled until signed transaction validation and explicit operator action are implemented.",
+    ];
+    const status = blockers.length === 0 && unsignedTransaction?.rawTransactionHex ? "draft" : "blocked";
 
     return {
       id: `txreview_${loan.id}_${purpose}`,
       loanId: loan.id,
       purpose,
-      status: "blocked",
+      status,
       network: this.mode,
-      summary: this.rpcConfig.readyForWalletRpc
-        ? "Simnet wallet RPC config is loaded. Raw transaction construction is still intentionally blocked until the unsigned builder is implemented."
-        : "Simnet transaction review placeholder. Wallet RPC configuration and raw transaction construction are intentionally not implemented yet.",
-      unsignedTransaction: null,
+      summary: unsignedTransaction?.rawTransactionHex
+        ? "Simnet unsigned transaction preview is ready for review. Signing and broadcast remain outside the app-owned server process."
+        : "Simnet transaction review placeholder. Wallet RPC configuration and raw transaction construction are intentionally blocked until the unsigned builder is connected.",
+      unsignedTransaction,
       requiredApprovals: ["Borrower", "Lender", "Arbiter"],
-      blockers: [
-        ...configBlockers,
-        "Unsigned transaction builder is not implemented.",
-        "Signing must be performed outside the app-owned server process.",
-        "Broadcast remains disabled until signed transaction validation and explicit operator action are implemented.",
-      ],
+      blockers,
       createdAt: new Date().toISOString(),
     };
+  }
+
+  private buildUnsignedTransaction(loan: Loan, purpose: TransactionPurpose) {
+    if (purpose !== "collateral_release" && purpose !== "liquidation") {
+      return {
+        unsignedTransaction: null,
+        blockers: [
+          ...this.rpcConfig.blockers,
+          "Only simnet collateral release and liquidation transaction builders are in scope.",
+          "Unsigned transaction builder is not implemented for this purpose.",
+        ],
+        warnings: [],
+      };
+    }
+
+    return this.unsignedBuilder.build({ loan, purpose, rpcConfig: this.rpcConfig });
   }
 }
