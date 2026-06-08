@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 
 const steps = [
   'npm run audit',
+  'npm run simnet:fixture-proof',
   'npm test',
   'npm run lint',
   'npm run build',
