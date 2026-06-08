@@ -57,7 +57,30 @@ Success criteria:
 - Liquidation reviews are queued automatically when all gates pass.
 - Signing and broadcast remain separate from the app server.
 
-## Phase 4: Production Backend
+## Phase 4: Trust-Minimized Arbiter Research
+
+Objective: reduce reliance on a trusted human/company arbiter by researching which escrow protections can move into Decred script or other Decred-native constraints.
+
+This is a security track, not a blocker for the current MVP. The MVP may continue with 2-of-3 escrow while this track explores whether future versions can reduce arbiter trust.
+
+Deliverables:
+
+- Research note on Decred script capabilities and limits.
+- Threat model for borrower/lender/arbiter collusion and non-cooperation.
+- Script-assisted escrow design options.
+- Timelock/recovery path options.
+- Liquidation-limit analysis: what can be enforced on-chain versus what must remain off-chain.
+- Simnet experiments for any proposed script-assisted spend paths.
+- Clear decision record on whether to keep, reduce, or replace the arbiter role in later versions.
+
+Success criteria:
+
+- The roadmap can clearly explain why the MVP uses a 2-of-3 arbiter and what trust remains.
+- At least one trust-reducing script-assisted design is evaluated in simnet or rejected with documented reasons.
+- No production release claims “trustless” unless the claim is proven by script design, simnet/testnet evidence, and security review.
+- User-facing docs can explain the arbiter risk honestly and show the plan to minimize it.
+
+## Phase 5: Production Backend
 
 Objective: replace demo storage and local assumptions.
 
@@ -76,7 +99,7 @@ Success criteria:
 
 - Hosted alpha can run with reliable data, jobs, logs, and alerts.
 
-## Phase 5: Revenue And Accounting
+## Phase 6: Revenue And Accounting
 
 Objective: make the product measurable as a business.
 
@@ -92,7 +115,7 @@ Success criteria:
 
 - Every fee is traceable from quote to collection to accounting report.
 
-## Phase 6: Legal And Security
+## Phase 7: Legal And Security
 
 Objective: reduce launch risk before real funds.
 
@@ -103,12 +126,13 @@ Deliverables:
 - Key custody review.
 - External code/security review.
 - Operational runbooks.
+- Arbiter trust-minimization review.
 
 Success criteria:
 
-- The product has reviewed operating limits, key boundaries, incident processes, and user disclosures.
+- The product has reviewed operating limits, key boundaries, incident processes, arbiter trust assumptions, and user disclosures.
 
-## Phase 7: Limited Launch
+## Phase 8: Limited Launch
 
 Objective: run a capped beta only after simnet/testnet proof.
 
