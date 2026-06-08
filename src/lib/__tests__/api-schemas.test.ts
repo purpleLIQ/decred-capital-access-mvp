@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { formatSchemaError, loanActionSchema, loanInputSchema, transactionReviewRequestSchema } from "../api-schemas";
+import {
+  formatSchemaError,
+  loanActionSchema,
+  loanInputSchema,
+  signingSessionCreateRequestSchema,
+  signingSubmissionRequestSchema,
+  transactionReviewRequestSchema,
+} from "../api-schemas";
+
+const unsignedTransaction = {
+  id: "unsigned_loan_1_collateral_release",
+  network: "simnet",
+  purpose: "collateral_release",
+  loanId: "loan_1",
+  fromAddress: "SsimnetEscrow",
+  toAddress: "SsimnetBorrower",
+  amountDcr: 10,
+  estimatedFeeDcr: 0.001,
+  requiredSignatures: 2,
+  totalSigners: 3,
+  rawTransactionHex: "01000000unsigned",
+  warnings: [],
+};
 
 describe("API request schemas", () => {
   it("coerces valid loan inputs and defaults to USDC", () => {
@@ -59,6 +81,43 @@ describe("API request schemas", () => {
         loanId: "loan_123",
         purpose: "loan_payout",
         approvals: { lender: "false", operator: true },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts signing session creation payloads", () => {
+    const parsed = signingSessionCreateRequestSchema.safeParse({
+      review: {
+        id: "review_1",
+        loanId: "loan_1",
+        purpose: "collateral_release",
+        status: "ready_for_signing",
+        network: "simnet",
+        summary: "Ready.",
+        unsignedTransaction,
+        requiredApprovals: ["Borrower", "Lender", "Operator"],
+        blockers: [],
+        createdAt: "2026-06-07T00:00:00.000Z",
+      },
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("accepts external signature submission payloads and rejects unknown roles", () => {
+    expect(
+      signingSubmissionRequestSchema.safeParse({
+        sessionId: "signing_review_1",
+        role: "borrower",
+        signedTransactionHex: "01000000signed",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      signingSubmissionRequestSchema.safeParse({
+        sessionId: "signing_review_1",
+        role: "operator",
+        signedTransactionHex: "01000000signed",
       }).success,
     ).toBe(false);
   });
