@@ -15,6 +15,14 @@ Implemented in `src/lib/signing-collection.ts`:
 - rejects a pasted unsigned raw transaction as if it were a signature,
 - marks a session ready for later broadcast review only after all required external signatures are present.
 
+Implemented as API/store groundwork:
+
+- request schemas in `src/lib/api-schemas.ts`,
+- in-memory demo session store in `src/lib/signing-session-store.ts`,
+- tests for schema and store behavior.
+
+The store is prototype-only. Production needs a database-backed implementation with auth, audit logs, and replay protection.
+
 ## Allowed
 
 - Display unsigned transaction hex.
