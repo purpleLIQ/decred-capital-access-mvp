@@ -8,6 +8,7 @@ export const transactionPurposeSchema = z.enum([
   "liquidation",
 ]);
 export const transactionReviewNetworkSchema = z.enum(["demo", "simnet"]).default("demo");
+export const signingRoleSchema = z.enum(["borrower", "lender", "arbiter"]);
 
 export const approvalStateSchema = z
   .object({
@@ -50,6 +51,44 @@ export const transactionReviewRequestSchema = z.object({
   purpose: transactionPurposeSchema,
   network: transactionReviewNetworkSchema,
   approvals: approvalStateSchema,
+});
+
+export const signingSessionCreateRequestSchema = z.object({
+  review: z.object({
+    id: z.string().min(1),
+    loanId: z.string().min(1),
+    purpose: transactionPurposeSchema,
+    status: z.enum(["draft", "ready_for_signing", "blocked"]),
+    network: transactionReviewNetworkSchema,
+    summary: z.string(),
+    unsignedTransaction: z
+      .object({
+        id: z.string().min(1),
+        network: z.enum(["simnet", "testnet", "mainnet"]),
+        purpose: transactionPurposeSchema,
+        loanId: z.string().min(1),
+        fromAddress: z.string(),
+        toAddress: z.string(),
+        amountDcr: z.number().nonnegative(),
+        estimatedFeeDcr: z.number().nonnegative(),
+        requiredSignatures: z.number().int().positive(),
+        totalSigners: z.number().int().positive(),
+        rawTransactionHex: z.string().min(1).nullable(),
+        warnings: z.array(z.string()),
+      })
+      .nullable(),
+    requiredApprovals: z.array(z.string()),
+    blockers: z.array(z.string()),
+    createdAt: z.string(),
+  }),
+});
+
+export const signingSubmissionRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  role: signingRoleSchema,
+  signedTransactionHex: z.string().min(1),
+  signerAddress: z.string().optional(),
+  note: z.string().max(1000).optional(),
 });
 
 export function formatSchemaError(error: z.ZodError): string {
