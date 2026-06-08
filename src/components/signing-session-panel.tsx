@@ -1,7 +1,7 @@
 "use client";
 
 import { ClipboardList, RefreshCw, ShieldCheck, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { SigningRole, SigningSession } from "@/lib/signing-collection";
 import type { TransactionReviewEnvelope } from "@/lib/transaction-review";
 
@@ -33,7 +33,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
 
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0] ?? null;
 
-  async function loadSessions() {
+  const loadSessions = useCallback(async () => {
     setBusy("load");
     setNotice(null);
     try {
@@ -47,7 +47,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
     } finally {
       setBusy(null);
     }
-  }
+  }, []);
 
   async function createSession() {
     if (!review) return;
@@ -99,8 +99,10 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
   }
 
   useEffect(() => {
+    // This effect starts one async session load after the panel mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSessions();
-  }, []);
+  }, [loadSessions]);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
