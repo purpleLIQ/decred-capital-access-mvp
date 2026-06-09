@@ -4,6 +4,7 @@ export * from "./interest-rates";
 export * from "./liquidation-states";
 export * from "./loan-quotes";
 export * from "./loan-requests";
+export * from "./oracle-policy";
 export * from "./platform-fees";
 export * from "./supplier-offers";
 export * from "./watcher-interfaces";
