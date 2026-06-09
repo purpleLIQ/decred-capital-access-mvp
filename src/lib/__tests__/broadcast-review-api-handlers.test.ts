@@ -70,6 +70,7 @@ describe("broadcast review API handlers", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.canBroadcast).toBe(false);
+    expect(response.body.reusedExisting).toBe(false);
     expect(response.body.review).toMatchObject({
       sessionId,
       status: "manual_review",
@@ -90,6 +91,18 @@ describe("broadcast review API handlers", () => {
     expect(response.body.reviews[0]).toMatchObject({ sessionId, status: "manual_review", canBroadcast: false });
   });
 
+  it("reuses the existing broadcast review for a session", () => {
+    const sessionId = createReadySigningSession();
+    const first = handleCreateBroadcastReview({ sessionId });
+    const second = handleCreateBroadcastReview({ sessionId });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.reusedExisting).toBe(true);
+    expect(second.body.review).toEqual(first.body.review);
+    expect(handleListBroadcastReviews().body.reviews).toHaveLength(1);
+  });
+
   it("returns 400 for blocked broadcast reviews", () => {
     const created = handleCreateSigningSession({ review: readyReview });
     const sessionId = (created.body.session as { id: string }).id;
@@ -97,6 +110,7 @@ describe("broadcast review API handlers", () => {
     const response = handleCreateBroadcastReview({ sessionId });
 
     expect(response.status).toBe(400);
+    expect(response.body.reusedExisting).toBe(false);
     expect(response.body.review).toMatchObject({
       sessionId,
       status: "blocked",
