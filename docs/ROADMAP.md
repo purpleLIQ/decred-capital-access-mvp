@@ -1,198 +1,411 @@
 # Roadmap
 
-This roadmap keeps the project moving toward a real Decred-backed lending product without crossing the current safety boundaries. The app is still a prototype: no real funds, no app-side signing, no app-side broadcasting, no mainnet support, and no production-readiness claim.
+This roadmap aligns the project around the ideal Decred-native lending product while keeping dangerous capabilities behind explicit proof gates. The current app remains a prototype: no real funds, no app-side signing, no app-side broadcasting, no mainnet support, and no production-readiness claim.
 
-## Current Baseline
+## Product Direction
 
-Implemented today:
+Build toward:
 
-- Demo borrower and operator flows.
-- Transaction-review envelopes and readiness guards.
-- Unsigned transaction preview groundwork.
-- Simnet proof harness commands and fixture proof artifacts.
-- Standalone signing-session UI at `/signing-sessions`.
-- External signed-hex collection for required roles.
-- Fixture signature verification for sample signed hex.
-- Broadcast-review gate that returns `blocked` or `manual_review` and keeps `canBroadcast: false`.
+- native DCR collateral,
+- native BTC, USDC, and USDT borrow assets,
+- no bridges,
+- no app custody,
+- no app-side private keys,
+- supplier offers and soft-pool UX before true pooled custody,
+- partial loan fulfillment,
+- supplier interest only on filled amounts,
+- borrower-facing fast turnaround,
+- transparent DCR platform fee,
+- arbiter reserve funding,
+- arbiter intervention before automatic fallback liquidation,
+- privacy-first evidence commitments on Decred,
+- optional future public/Treasury funding requests for large loans.
 
-Still not implemented:
+## Current Safety Boundary
 
-- Real Decred signature verification.
-- Real borrower wallet connection.
-- Production broadcast adapter.
-- Real liquidation execution.
-- Mainnet support.
-- Legal/compliance/custody operating process.
+Allowed now:
 
-## Phase 1: Finish Review And Signing Structure
+- demo-only UI,
+- transaction review previews,
+- unsigned transaction previews,
+- external signed-hex collection,
+- fixture signature verification,
+- broadcast-review gate with `canBroadcast: false`,
+- simnet artifact generation,
+- docs and planning.
 
-Objective: keep building the non-custodial transaction lifecycle without unsafe signing or broadcasting.
+Not allowed now:
 
-Delivered:
+- real funds,
+- mainnet paths,
+- server-side signing,
+- wallet unlock,
+- private-key handling,
+- automatic broadcast,
+- production liquidation execution,
+- bridge custody,
+- true pooled custody,
+- production-readiness claims.
 
-- Transaction-review model.
-- Review UI.
-- Approval and blocker model.
-- `canMoveToSigning(review)` guard.
-- Simnet adapter and wallet RPC config groundwork.
-- Unsigned transaction builder seam.
-- Signing-session state model and store.
-- Signing-session API route wrappers.
-- Signing-session UI.
-- Fixture signature verification.
-- Broadcast-review gate with broadcasting disabled.
-- Safety tests.
+Future automatic liquidation is a product requirement, but only after oracle, policy, arbiter, verifier, transaction-template, watcher, and simnet proof milestones are complete.
 
-Remaining:
+## Locked Product Decisions
 
-- Expose the broadcast-review gate through a review-only API/helper.
-- Add a UI action to create a broadcast review from a ready signing session.
-- Display status, blockers, warnings, and fixture signature results.
-- Keep `canBroadcast: false`.
+- Collateral asset: DCR.
+- Borrow assets: BTC, USDC, USDT.
+- Liquidity model v0: supplier offers / soft-pool UX, not custody pools.
+- Partial fulfillment: supported from the protocol model.
+- Activation rule v0: 100% funding required unless borrower explicitly accepts partial funding later.
+- Interest model v0: supplier quote APR plus configurable protocol, duration, and collateral-risk adjustments.
+- No utilization-based rates in v0.
+- Platform fee: 1% of DCR collateral amount.
+- Fee collection: required output in the DCR collateral funding transaction.
+- Initial fee split: 70% platform / 30% arbiter reserve, configurable.
+- Evidence: full evidence off-chain, privacy-safe summaries, Decred on-chain hash commitments.
+- Arbiter-agent Skill: later, after evidence schema, arbiter API, and arbiter state machine exist.
+- Treasury/public funding request threshold: $10,000 equivalent, configurable, future research.
+- Security and protocol review required before real funds.
 
-Success criteria:
+## Target Loan Lifecycle
 
-- Demo and simnet reviews stay blocked until readiness gates pass.
-- No private keys are stored server-side.
-- No transaction can move to signing without blockers cleared and approvals complete.
-- No signed transaction can move past broadcast review without manual/operator review.
-- No app-side broadcast path exists yet.
+```text
+borrower requests BTC / USDC / USDT
+-> supplier offers partially fill the request
+-> request reaches required funding threshold
+-> borrower locks DCR collateral and pays platform fee
+-> Decred watcher confirms collateral and fee outputs
+-> suppliers disburse borrow asset
+-> BTC/EVM watchers confirm disbursements
+-> loan becomes active
+-> borrower repays
+-> repayments are allocated to supplier positions
+-> oracle monitors loan health
+-> warning/top-up window opens if needed
+-> arbiter intervention window opens if needed
+-> automatic fallback liquidation if needed
+-> evidence hash is committed to Decred
+```
 
-## Phase 2: Full Simnet Proof
+## Phase 0: Docs And Scope Control
 
-Objective: prove the real Decred collateral lifecycle in an isolated environment.
-
-Deliverables:
-
-- Borrower, lender, and arbiter wallets.
-- 2-of-3 escrow creation.
-- Deposit/fund/repay/release flow.
-- Liquidation path as transaction review, not app-side execution.
-- Complete audit trail.
-- Real unsigned transaction builders proven against running simnet wallets.
-- Real signature verification for Decred transactions.
-
-Success criteria:
-
-- Two required signers can release collateral in simnet.
-- No single party can move collateral alone.
-- Release and liquidation paths produce auditable simnet transaction IDs.
-- The app server still does not sign, unlock wallets, hold private keys, or silently broadcast.
-
-## Phase 3: Autonomous Risk Engine
-
-Objective: ensure production does not depend on manual liquidation memory.
-
-Deliverables:
-
-- Watcher job.
-- Automated liquidation policy evaluation.
-- Queueing transaction reviews.
-- Notification system.
-- Alerts.
-- Retry and circuit breaker behavior.
-
-Success criteria:
-
-- Risky loans are detected automatically.
-- Borrowers and operators are warned.
-- Liquidation reviews are queued automatically when all gates pass.
-- Signing and broadcast remain separate from the app server.
-- Liquidation automation evaluates, queues, alerts, and circuit-breaks. It does not execute liquidation.
-
-## Phase 4: Trust-Minimized Arbiter Research
-
-Objective: reduce reliance on a trusted human/company arbiter by researching which escrow protections can move into Decred script or other Decred-native constraints.
-
-This is a security track, not a blocker for the current MVP. The MVP may continue with 2-of-3 escrow while this track explores whether future versions can reduce arbiter trust.
+Objective: lock the ideal product architecture before additional implementation work.
 
 Deliverables:
 
-- Research note on Decred script capabilities and limits.
-- Threat model for borrower/lender/arbiter collusion and non-cooperation.
-- Script-assisted escrow design options.
-- Timelock/recovery path options.
-- Liquidation-limit analysis: what can be enforced on-chain versus what must remain off-chain.
-- Simnet experiments for any proposed script-assisted spend paths.
-- Clear decision record on whether to keep, reduce, or replace the arbiter role in later versions.
+- `docs/DECRED_NATIVE_LENDING_INFRA.md`
+- `docs/LIQUIDITY_SUPPLIERS.md`
+- `docs/CROSS_CHAIN_BORROWING.md`
+- `docs/LIQUIDATION_AND_ARBITERS.md`
+- `docs/EVIDENCE_COMMITMENTS.md`
+- refreshed `docs/AI_HANDOFF.md`
+- refreshed `docs/OPERATIONS.md`
 
 Success criteria:
 
-- The roadmap can clearly explain why the MVP uses a 2-of-3 arbiter and what trust remains.
-- At least one trust-reducing script-assisted design is evaluated in simnet or rejected with documented reasons.
-- No production release claims “trustless” unless the claim is proven by script design, simnet/testnet evidence, and security review.
-- User-facing docs can explain the arbiter risk honestly and show the plan to minimize it.
+- Docs distinguish current prototype behavior from future target behavior.
+- Docs remove stale assumptions about broadcast review not being exposed.
+- Docs make supplier liquidity, partial fills, fee config, evidence commitments, arbiter windows, and automatic fallback liquidation explicit.
+- Docs avoid legal-positioning claims and keep security/protocol review as the real-funds gate.
 
-## Phase 5: Production Backend
+## Phase 1: Protocol Domain Foundation
 
-Objective: replace demo storage and local assumptions.
+Objective: define the ideal protocol model without live chain calls.
 
 Deliverables:
 
-- Production database.
-- Migrations.
-- Secrets management.
-- Background jobs.
-- Logging.
-- Monitoring.
-- Rate limiting.
-- Admin access controls.
+- `BorrowAsset`: BTC, USDC, USDT.
+- `CollateralAsset`: DCR.
+- `LoanRequest`.
+- `SupplierOffer`.
+- `SupplierFill`.
+- `SupplierPosition`.
+- `LoanFundingState`.
+- `InterestRateConfig`.
+- `PlatformFeeConfig`.
+- `OracleSnapshot`.
+- `LiquidationPolicy`.
+- `EvidenceBundle`.
 
-Success criteria:
+Tests:
 
-- Hosted alpha can run with reliable data, jobs, logs, and alerts.
-- Production services still cannot access wallet secrets or sign transactions.
+- partial fills,
+- 100% funding threshold,
+- supplier position accounting,
+- supplier earns only on filled amount,
+- blended APR calculation,
+- platform fee calculation,
+- 70/30 fee split,
+- privacy-safe evidence summary.
 
-## Phase 6: Revenue And Accounting
+## Phase 2: Supplier Offer Book And Partial Fills
 
-Objective: make the product measurable as a business.
-
-Deliverables:
-
-- Origination fee collection design.
-- Platform treasury config.
-- Fee ledger.
-- Reconciliation.
-- Revenue dashboard.
-
-Success criteria:
-
-- Every fee is traceable from quote to collection to accounting report.
-- Fee collection does not weaken custody, signing, or broadcast boundaries.
-
-## Phase 7: Legal And Security
-
-Objective: reduce launch risk before real funds.
+Objective: support supplier offers and borrower requests with fast-feeling partial fulfillment.
 
 Deliverables:
 
-- Legal/compliance review.
-- Threat model.
-- Key custody review.
-- External code/security review.
-- Operational runbooks.
-- Arbiter trust-minimization review.
-- User disclosures for prototype, testnet, and production states.
+- supplier offer creation,
+- offer edit/pause/cancel,
+- borrower loan request creation,
+- partial fill reservations,
+- funding window,
+- funding expiration,
+- funding progress state,
+- supplier position creation after activation.
 
 Success criteria:
 
-- The product has reviewed operating limits, key boundaries, incident processes, arbiter trust assumptions, and user disclosures.
+- A borrower request can be filled by multiple suppliers.
+- Supplier interest accrues only on filled positions.
+- Unfunded or expired requests do not require collateral lock or fee payment.
+- Borrower UI can show percent funded, estimated APR, and next action.
+
+## Phase 3: Interest Quotes And Platform Fee
+
+Objective: make quote economics transparent and configurable.
+
+Deliverables:
+
+- supplier quote APR,
+- protocol spread,
+- duration premium,
+- collateral-risk premium,
+- weighted/blended borrower APR,
+- 1% DCR platform fee,
+- editable fee bps,
+- configurable platform/arbiter reserve split,
+- required DCR fee output verifier scaffold.
+
+Success criteria:
+
+- Borrower can see rate components and DCR platform fee before collateral lock.
+- Loan activation is blocked if expected fee output is absent or wrong.
+- Fee config can be edited without code rewrites.
+
+## Phase 4: Cross-Chain Watcher Interfaces
+
+Objective: define native-chain settlement verification boundaries.
+
+Deliverables:
+
+- Decred watcher interface,
+- Bitcoin watcher interface,
+- EVM token watcher interface,
+- fixture-backed watcher adapters,
+- confirmation/finality rules,
+- stale watcher detection,
+- idempotent event processing.
+
+Success criteria:
+
+- The app can model DCR collateral, BTC disbursement/repayment, and USDC/USDT disbursement/repayment without bridges.
+- Fixture events prove state transitions without live funds.
+
+## Phase 5: Oracle And Liquidation Policy Scaffolding
+
+Objective: implement deterministic risk and liquidation eligibility logic.
+
+Deliverables:
+
+- multi-source oracle snapshot model,
+- price freshness checks,
+- source deviation checks,
+- conservative reference price,
+- LTV calculation,
+- warning threshold,
+- liquidation threshold,
+- borrower grace/top-up window,
+- arbiter intervention window,
+- automatic fallback eligibility state,
+- circuit breakers.
+
+Success criteria:
+
+- Bad/stale/disagreeing oracle data blocks liquidation.
+- Liquidation eligibility can be explained from evidence.
+- Automatic fallback can become eligible only after policy gates pass.
+
+## Phase 6: Evidence Bundle And Decred Commitment Model
+
+Objective: make decisions verifiable while preserving privacy.
+
+Deliverables:
+
+- canonical evidence bundle model,
+- participant-visible evidence bundle,
+- privacy-safe public summary,
+- evidence hash,
+- Decred nulldata commitment plan,
+- evidence lookup model.
+
+Success criteria:
+
+- Full evidence is not stored on-chain.
+- On-chain commitment proves evidence integrity.
+- Public metadata avoids unnecessary borrower/supplier details.
+
+## Phase 7: Decred Collateral Contract Templates
+
+Objective: define DCR collateral spend paths and prove them in simnet.
+
+Deliverables:
+
+- normal release path,
+- borrower refund path,
+- supplier/arbiter liquidation path,
+- borrower/arbiter dispute path,
+- automatic fallback path candidates,
+- timelock requirements,
+- signature role requirements,
+- simnet proof checklist.
+
+Success criteria:
+
+- No single party can move collateral alone in the intended escrow path.
+- Spend paths are documented before code claims trust minimization.
+- Automatic fallback design remains blocked until simnet proof.
+
+## Phase 8: Arbiter System
+
+Objective: add arbiter intervention before automatic fallback liquidation.
+
+Deliverables:
+
+- arbiter case queue,
+- arbiter eligibility model,
+- arbiter actions,
+- pause/confirm/resolve behavior,
+- arbiter window expiry,
+- arbiter score v0,
+- arbiter reserve payout model.
+
+Success criteria:
+
+- Founder/operator manual liquidation review is not part of the target path.
+- Arbiters can handle edge cases before fallback liquidation.
+- Objective scoring matters more than subjective ratings.
+
+## Phase 9: Simnet Automatic Fallback Liquidation
+
+Objective: prove automatic fallback liquidation only in a safe isolated environment.
+
+Deliverables:
+
+- liquidation transaction template generation,
+- transaction verifier,
+- evidence bundle creation,
+- simnet-only broadcast adapter,
+- post-liquidation accounting,
+- Decred evidence commitment in simnet.
+
+Success criteria:
+
+- Automatic fallback works only after policy/verifier/evidence gates pass.
+- No mainnet path exists.
+- No app-side private keys or wallet unlock calls are introduced.
+
+## Phase 10: Supplier Soft-Pool UX
+
+Objective: make supplier offers feel like pooled liquidity without pooled custody.
+
+Deliverables:
+
+- aggregated liquidity display,
+- borrower fast-match UX,
+- supplier dashboard,
+- supplier auto-quoting hooks,
+- liquidity availability estimates.
+
+Success criteria:
+
+- Borrowers see fast, pool-like liquidity.
+- Suppliers keep custody until matched/disbursed.
+- True pooled custody remains out of scope until separately designed and reviewed.
+
+## Phase 11: Arbiter-Agent Skill
+
+Objective: package arbiter evidence review workflow for AI agents after the real evidence and arbiter APIs exist.
+
+Prerequisites:
+
+- stable evidence schema,
+- stable arbiter action model,
+- arbiter API,
+- arbiter UI,
+- tested policy state machine.
+
+The Skill should help arbiters summarize evidence, identify blockers, and recommend allowed actions. It must not bypass protocol rules or blindly decide liquidations.
+
+## Phase 12: Politeia / Treasury Special Requests
+
+Objective: research optional public funding requests for larger loans.
+
+Future concept:
+
+```text
+borrower requests loan above treasuryRequestThresholdUsd
+-> borrower opts into public request path
+-> system prepares public/Treasury funding request
+-> Treasury funds the loan if approved
+-> Treasury earns all interest
+-> if borrower defaults, collateral is sent to Treasury path
+```
+
+Initial threshold:
+
+```text
+treasuryRequestThresholdUsd = 10000
+```
+
+This is future research. It should not be used for private borrower data, real-time matching, liquidation execution, or v0 loan fulfillment.
+
+## Phase 13: Security And Protocol Review
+
+Objective: review the protocol before real funds.
+
+Review areas:
+
+- Decred script templates,
+- transaction construction,
+- signature verification,
+- watcher correctness,
+- oracle policy,
+- liquidation policy,
+- arbiter state machine,
+- automatic fallback liquidator,
+- platform fee verifier,
+- evidence commitment format,
+- cross-chain watcher logic,
+- supplier repayment allocation.
+
+Success criteria:
+
 - Claims about custody, escrow, liquidation, testnet readiness, or production readiness are backed by evidence.
+- Real funds remain blocked until security and protocol review is complete.
 
-## Phase 8: Limited Launch
+## Scope-Control Rules
 
-Objective: run a capped beta only after simnet/testnet proof.
+Do not build until explicitly scheduled:
 
-Deliverables:
+- real funds,
+- mainnet paths,
+- automatic production broadcast,
+- app-side signing,
+- wallet unlock,
+- private-key handling,
+- true custody pools,
+- Treasury request integration,
+- arbiter-agent Skill,
+- production liquidation execution.
 
-- Testnet pilot.
-- Capped production beta.
-- Circuit breakers.
-- Manual emergency stop.
-- Monitoring and alerts.
-- User docs.
+Build toward now:
 
-Success criteria:
-
-- Small, capped loans run with clear monitoring, emergency controls, and reviewed legal/security posture.
-- Mainnet launch remains blocked until the signing, broadcast, liquidation, legal, and security gates are complete.
+- ideal protocol docs,
+- domain models,
+- supplier offers,
+- partial fills,
+- fee config,
+- blended APR,
+- evidence schema,
+- oracle/liquidation policy scaffolding,
+- arbiter state machine scaffolding,
+- watcher interfaces.
