@@ -4,12 +4,6 @@ You are continuing the Decred Capital Access MVP repo.
 
 Repository: `https://github.com/purpleLIQ/decred-capital-access-mvp`
 
-Local path used by the project owner:
-
-```text
-C:\Users\jcrea\Documents\New project 5\decred-capital-access-mvp
-```
-
 Default branch: `main`
 
 Package manager: `npm`
@@ -29,23 +23,47 @@ npm run verify
 
 ## Project Positioning
 
-This is a Decred-native DCR-backed lending MVP prototype. It demonstrates simnet-proof preparation and non-custodial signing groundwork with fixture/sample data. It is not production-ready, not mainnet-ready, and must not be described as real lending.
+This is a Decred-native lending prototype. It currently demonstrates simnet-proof preparation, transaction-review structure, non-custodial signing-session groundwork, fixture signature verification, and broadcast-review gating with broadcasting disabled.
 
-Current positioning:
+Do not describe it as real lending, production-ready, mainnet-ready, or proven trust-minimized lending.
+
+Current prototype positioning:
 
 ```text
-Decred-native DCR-backed lending MVP prototype.
+Decred-native DCR-backed lending prototype.
 Simnet proof + non-custodial signing groundwork.
 Not production-ready.
 Not mainnet-ready.
 No real funds.
 No app-side signing.
 No app-side broadcasting.
+No production liquidation execution.
 ```
+
+## Target Product Direction
+
+Build toward the ideal architecture while keeping dangerous capabilities behind proof gates:
+
+- native DCR collateral,
+- native BTC, USDC, and USDT borrow assets,
+- no bridges,
+- no app custody,
+- no app-side private keys,
+- supplier offers and soft-pool UX before true pooled custody,
+- partial loan fulfillment,
+- supplier interest only on filled amounts,
+- borrower-facing fast turnaround,
+- 1% DCR platform fee in the collateral funding transaction,
+- 70% platform / 30% arbiter reserve initial split, configurable,
+- arbiter intervention before automatic fallback liquidation,
+- automatic fallback liquidation as a future target after simnet proof,
+- privacy-first evidence commitments on Decred,
+- optional future public/Treasury funding requests for loans over $10,000 equivalent,
+- arbiter-agent Skill later, after evidence schema and arbiter APIs exist.
 
 ## Hard Safety Boundaries
 
-The app must not:
+The app must not currently:
 
 - sign transactions server-side,
 - hold private keys,
@@ -54,20 +72,20 @@ The app must not:
 - ask users for private keys, seeds, mnemonics, wallet files, passphrases, or xprvs,
 - silently broadcast transactions,
 - broadcast anything on mainnet,
-- execute liquidation,
+- execute production liquidation,
 - call wallet RPC from broadcast/signing UI paths,
 - claim production readiness,
 - claim real lending is live,
 - claim mainnet readiness,
 - claim trustless escrow is proven,
-- claim liquidation automation is production-ready.
+- claim automatic liquidation is production-ready.
 
 Allowed current behavior:
 
 - demo-only UI,
 - simnet/test fixture flows,
 - unsigned transaction previews,
-- external signed hex collection,
+- external signed-hex collection,
 - fixture signature verification,
 - broadcast-review gate decisions with broadcasting disabled,
 - local JSON simnet proof artifacts,
@@ -99,6 +117,8 @@ Allowed current behavior:
   - `src/lib/signing-session-api-handlers.ts`
   - `src/lib/signature-verification.ts`
   - `src/lib/broadcast-review.ts`
+  - `src/lib/broadcast-review-store.ts`
+  - `src/lib/broadcast-review-api-handlers.ts`
   - `src/lib/adapters/*`
 
 ## Completed Work
@@ -116,7 +136,6 @@ Allowed current behavior:
 - Guarded simnet wallet RPC client scaffold for unsigned-only methods.
 - RPC-backed unsigned release/liquidation builder scaffold for confirmed simnet escrow UTXOs.
 - Liquidation review integration with liquidation policy blockers.
-- Root docs organized under `docs/`, with `AGENTS.md` and `CLAUDE.md` kept as small compatibility stubs.
 - Safety tests for schema validation, adapters, liquidation policy, state machine, transaction review, unsigned-builder guardrails, signing collection, signing sessions, signature verification, and broadcast review.
 - Non-custodial signing collection model.
 - Signing-session store and API handler layer.
@@ -127,30 +146,37 @@ Allowed current behavior:
 - Lowercase review approval role mapping for signing sessions.
 - Fixture signature verification for sample externally signed hex.
 - Broadcast-review gate in `src/lib/broadcast-review.ts`.
+- Broadcast-review store/API handler.
+- Broadcast-review route wrapper:
+  - `src/app/api/broadcast-reviews/route.ts`
+- Broadcast-review UI on `/signing-sessions`.
+- Existing broadcast review reuse for a signing session.
 
 ## Current Transaction Lifecycle
 
-The intended lifecycle is:
+Current implemented lifecycle:
 
 ```text
 transaction review
-→ ready_for_signing
-→ signing session
-→ external borrower/lender or lender/arbiter signed hex collection
-→ ready_for_broadcast_review
-→ broadcast review gate
-→ manual/operator review
-→ future broadcast adapter, still disabled until simnet proof
+-> ready_for_signing
+-> signing session
+-> external borrower/lender or lender/arbiter signed hex collection
+-> ready_for_broadcast_review
+-> broadcast review gate
+-> blocked or manual_review
+-> no broadcast path
 ```
 
 Current implemented test UI flow:
 
 ```text
 /signing-sessions
-→ Create sample signing session
-→ paste borrower fake signed hex
-→ paste lender fake signed hex
-→ session becomes ready_for_broadcast_review
+-> Create sample signing session
+-> paste borrower fake signed hex
+-> paste lender fake signed hex
+-> session becomes ready_for_broadcast_review
+-> Create/Load broadcast review
+-> review shows blocked or manual_review with canBroadcast false
 ```
 
 Use these fake hex values for UI testing:
@@ -166,61 +192,42 @@ The fixture verifier expects submitted signed hex to start with:
 01000000signed
 ```
 
-Do not use the unsigned sample hex as submitted signed hex. That should be rejected.
+Do not use unsigned sample hex as submitted signed hex. That should be rejected.
 
-## Transaction Review Status
+## Roadmap Docs
 
-Transaction reviews are previews only. A review can move to signing only when:
+Current roadmap documents:
 
-- status is `ready_for_signing`,
-- blockers are empty,
-- required approvals are true,
-- unsigned raw transaction hex exists,
-- server signing, broadcasting, and private-key storage remain disabled.
+- `docs/ROADMAP.md`
+- `docs/DECRED_NATIVE_LENDING_INFRA.md`
+- `docs/LIQUIDITY_SUPPLIERS.md`
+- `docs/CROSS_CHAIN_BORROWING.md`
+- `docs/LIQUIDATION_AND_ARBITERS.md`
+- `docs/EVIDENCE_COMMITMENTS.md`
+- `docs/NON_CUSTODIAL_SIGNING.md`
+- `docs/OPERATIONS.md`
 
-Review statuses include:
+Use these docs to prevent scope drift.
 
-- `blocked`
-- `draft`
-- `ready_for_signing`
+## Next Development Work
 
-## Signing Session Status
+Recommended next PRs after the roadmap docs:
 
-The signing-session flow can collect external signed hex submissions and move a session to `ready_for_broadcast_review` when all required roles have submitted fixture-valid signed hex.
-
-Current signing-session behavior is still fixture/demo-level. The app does not perform real Decred signature verification yet.
-
-Important files:
-
-- `src/lib/signing-collection.ts`
-- `src/lib/signing-session-store.ts`
-- `src/lib/signing-session-api-handlers.ts`
-- `src/components/signing-session-panel.tsx`
-- `src/app/api/signing-sessions/route.ts`
-- `src/app/api/signing-sessions/submissions/route.ts`
-
-## Broadcast Review Status
-
-The broadcast-review gate is implemented as a pure library layer in `src/lib/broadcast-review.ts`.
-
-It:
-
-- evaluates completed `ready_for_broadcast_review` signing sessions,
-- runs fixture signature verification for each external signature submission,
-- returns `blocked` or `manual_review`,
-- keeps `canBroadcast: false`,
-- requires operator approval before any future broadcast path.
-
-It does not:
-
-- sign,
-- broadcast,
-- unlock wallets,
-- handle private keys,
-- call wallet RPC,
-- execute liquidation.
-
-The gate is not yet exposed through API/UI. The next development stage may add a review-only API/helper and a UI button such as `Create broadcast review`, but it must still keep broadcasting disabled.
+1. Add protocol domain foundation:
+   - borrow assets BTC/USDC/USDT,
+   - DCR collateral asset,
+   - loan requests,
+   - supplier offers,
+   - supplier fills,
+   - supplier positions,
+   - funding states,
+   - interest config,
+   - platform fee config.
+2. Add supplier offer and partial-fill state machine.
+3. Add platform fee and blended APR calculations.
+4. Add oracle and liquidation policy scaffolding.
+5. Add evidence bundle and hash commitment scaffolding.
+6. Add Decred collateral contract template plan/scaffold.
 
 ## Simnet Proof Harness
 
@@ -247,14 +254,6 @@ The fixture proof creates local JSON artifacts only. It does not prove a real si
 
 The RPC-backed harness may use read-only/unsigned wallet calls such as UTXO inspection and unsigned transaction construction. It must not sign, unlock wallets, export/import keys, broadcast, or execute liquidation.
 
-## Known Recent PRs
-
-- PR #36: Add signing session route wrappers — merged.
-- PR #44: Add session console surface — stale/obsolete/conflicting; do not merge. Close it if it is still open.
-- PR #45: Enable standalone signing session flow — merged.
-- PR #46: Accept lowercase review approval roles in signing sessions — merged.
-- PR #47: Add broadcast review gate — merged.
-
 ## Connector Caveat
 
 Direct GitHub connector writes to `src/app/api/**/route.ts` may be blocked by safety filters. Avoid repeatedly trying blocked route writes.
@@ -264,33 +263,6 @@ Accepted workaround:
 - create pure helpers in `src/lib/**`,
 - create UI in `src/components/**`,
 - if route files are required and connector blocks them, give the user exact local PowerShell instructions to create thin route wrappers manually.
-
-Route wrappers already exist for signing sessions. Do not recreate them unless they are missing.
-
-## Recommended Next Work
-
-Recommended docs refresh sequence:
-
-1. Update `docs/AI_HANDOFF.md` with the current repo state.
-2. Update `README.md` and `ROADMAP.md`.
-3. Update detailed docs related to signing, broadcast review, simnet, operations, and safety boundaries.
-
-Recommended next development stage after docs refresh:
-
-1. Expose the broadcast-review gate through a review-only API/helper.
-2. Add a UI action on the signing-session page to create a broadcast review.
-3. Display review status, blockers, warnings, and fixture signature results.
-4. Keep `canBroadcast: false`.
-5. Do not add a broadcast button.
-6. Do not add RPC, signing, wallet unlock, private-key handling, or liquidation execution.
-
-Likely files for the next development stage:
-
-- `src/lib/broadcast-review-store.ts`
-- `src/lib/broadcast-review-api-handlers.ts`
-- `src/lib/__tests__/broadcast-review-api-handlers.test.ts`
-- `src/components/signing-session-panel.tsx`
-- `src/app/api/broadcast-reviews/route.ts` if a route wrapper can be safely added.
 
 ## Do Not Claim Yet
 
@@ -302,7 +274,8 @@ Likely files for the next development stage:
 - Testnet is proven.
 - Trustless lending is proven.
 - Trust-minimized arbiter is implemented.
-- Liquidation automation is production-ready.
+- Automatic liquidation is production-ready.
 - Real liquidation execution works.
 - Broadcasting is implemented.
-- Legal/compliance clearance.
+- Treasury request integration works.
+- Arbiter-agent Skill exists.
