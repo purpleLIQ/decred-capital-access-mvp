@@ -1,7 +1,7 @@
 "use client";
 
 import { ClipboardList, RefreshCw, ShieldCheck, Upload } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SigningRole, SigningSession } from "@/lib/signing-collection";
 import type { TransactionReviewEnvelope } from "@/lib/transaction-review";
 
@@ -24,6 +24,77 @@ interface SigningSubmissionResponse {
   error?: string;
 }
 
+const sampleReadyReview: TransactionReviewEnvelope = {
+  id: "txreview_simnet_sample_collateral_release",
+  loanId: "loan_sample_external_signing",
+  loanRef: "DCA-SAMPLE-001",
+  purpose: "collateral_release",
+  purposeLabel: "Collateral release review",
+  network: "simnet",
+  status: "ready_for_signing",
+  summary: "Sample simnet-ready review for exercising external signature collection without signing or broadcasting.",
+  adapterReview: {
+    id: "txreview_simnet_sample_collateral_release",
+    loanId: "loan_sample_external_signing",
+    purpose: "collateral_release",
+    status: "ready_for_signing",
+    network: "simnet",
+    summary: "Sample simnet-ready review for exercising external signature collection without signing or broadcasting.",
+    unsignedTransaction: {
+      id: "unsigned_sample_collateral_release",
+      network: "simnet",
+      purpose: "collateral_release",
+      loanId: "loan_sample_external_signing",
+      fromAddress: "SsampleEscrowAddress",
+      toAddress: "SsampleBorrowerRefundAddress",
+      amountDcr: 10,
+      estimatedFeeDcr: 0.001,
+      requiredSignatures: 2,
+      totalSigners: 3,
+      rawTransactionHex: "01000000sample_unsigned_external_signing_review",
+      warnings: ["Sample unsigned transaction hex for UI flow testing only."],
+    },
+    requiredApprovals: ["Borrower", "Lender", "Operator"],
+    blockers: [],
+    createdAt: "2026-06-08T00:00:00.000Z",
+  },
+  unsignedTransaction: {
+    id: "unsigned_sample_collateral_release",
+    network: "simnet",
+    purpose: "collateral_release",
+    loanId: "loan_sample_external_signing",
+    fromAddress: "SsampleEscrowAddress",
+    toAddress: "SsampleBorrowerRefundAddress",
+    amountDcr: 10,
+    estimatedFeeDcr: 0.001,
+    requiredSignatures: 2,
+    totalSigners: 3,
+    rawTransactionHex: "01000000sample_unsigned_external_signing_review",
+    warnings: ["Sample unsigned transaction hex for UI flow testing only."],
+  },
+  approvals: {
+    borrower: true,
+    lender: true,
+    arbiter: false,
+    operator: true,
+  },
+  requiredApprovals: ["borrower", "lender", "operator"],
+  blockers: [],
+  warnings: [
+    "Sample review is for UI flow testing only.",
+    "Broadcast remains disabled and separate from signature collection.",
+  ],
+  signingBoundary: {
+    canSign: false,
+    canBroadcast: false,
+    storesPrivateKeys: false,
+    rawTransactionHexPresent: true,
+    privateKeyHandling: "none",
+    broadcastHandling: "disabled",
+  },
+  createdAt: "2026-06-08T00:00:00.000Z",
+};
+
 export function SigningSessionPanel({ review }: { review: TransactionReviewEnvelope | null }) {
   const [sessions, setSessions] = useState<SigningSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
@@ -31,6 +102,8 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const activeReview = useMemo(() => review ?? sampleReadyReview, [review]);
+  const isUsingSampleReview = !review;
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0] ?? null;
 
   const loadSessions = useCallback(async () => {
@@ -50,14 +123,13 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
   }, []);
 
   async function createSession() {
-    if (!review) return;
     setBusy("create");
     setNotice(null);
     try {
       const response = await fetch("/api/signing-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ review }),
+        body: JSON.stringify({ review: activeReview }),
       });
       const result = (await response.json()) as SigningSessionCreateResponse;
       if (!response.ok) throw new Error(result.error ?? "Signing session could not be created.");
@@ -125,15 +197,19 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
         </div>
 
         <div className="mt-5 space-y-3">
+          {isUsingSampleReview ? (
+            <div className="rounded-md bg-[#fff4d8] p-3 text-sm text-[#6f4d00]">
+              No live transaction review is attached to this standalone page, so it uses a sample simnet-ready review for UI flow testing.
+            </div>
+          ) : null}
           <button
             className="inline-flex h-11 items-center gap-2 rounded-md bg-[#17211d] px-4 text-sm font-semibold text-white hover:bg-[#2b3732] disabled:opacity-60"
-            disabled={!review || busy === "create"}
+            disabled={busy === "create"}
             onClick={createSession}
           >
             <ClipboardList className="h-4 w-4" />
-            Create from current review
+            {isUsingSampleReview ? "Create sample signing session" : "Create from current review"}
           </button>
-          {!review ? <p className="text-sm text-[#6b7b74]">Generate a transaction review before creating a signing session.</p> : null}
           {notice ? <p className="rounded-md bg-[#eef3f0] p-3 text-sm text-[#42524c]">{notice}</p> : null}
         </div>
 
