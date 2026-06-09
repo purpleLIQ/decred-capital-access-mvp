@@ -7,11 +7,14 @@ import {
   calculateWeightedSupplierAprBps,
   canActivateLoanFunding,
   canBorrowerAcceptPartialFunding,
+  createBorrowAssetDisbursementObservation,
+  createDecredCollateralLockObservation,
   createEvidencePublicSummary,
   createInitialLiquidationState,
   createLoanFundingState,
   createLoanQuote,
   createSupplierPositionsForLoan,
+  evaluateObservationStatus,
   evaluateSupplierOfferReservation,
   expireLoanFundingState,
   expireSupplierOffer,
@@ -108,11 +111,7 @@ describe("protocol domain foundation", () => {
   });
 
   it("creates a full quote with blended APR, supplier allocations, and DCR fee split", () => {
-    const quote = createLoanQuote({
-      request,
-      fills,
-      interestRateConfig,
-    });
+    const quote = createLoanQuote({ request, fills, interestRateConfig });
 
     expect(quote.activationEligible).toBe(true);
     expect(quote.interestRateQuote.weightedSupplierAprBps).toBe(950);
@@ -144,17 +143,145 @@ describe("protocol domain foundation", () => {
   });
 
   it("creates a partial-fill quote without marking activation eligible", () => {
-    const quote = createLoanQuote({
-      request,
-      fills: [fills[0]],
-      interestRateConfig,
-    });
+    const quote = createLoanQuote({ request, fills: [fills[0]], interestRateConfig });
 
     expect(quote.activationEligible).toBe(false);
     expect(quote.fundingState.status).toBe("partially_filled");
     expect(quote.borrowerPrincipalDue).toBe(0.25);
     expect(quote.supplierAllocations).toHaveLength(1);
     expect(quote.supplierAllocations[0].fundingShareBps).toBe(10_000);
+  });
+
+  it("confirms DCR collateral and platform fee observations after required confirmations", () => {
+    const platformFee = calculatePlatformFeeBreakdown(100);
+    const observation = createDecredCollateralLockObservation({
+      id: "watch-dcr-1",
+      expectation: {
+        loanId: request.id,
+        collateralAsset: "DCR",
+        collateralAmount: 100,
+        escrowAddress: "DsEscrow",
+        platformFee,
+        platformFeeAddress: "DsPlatformFee",
+      },
+      reference: {
+        network: "decred_simnet",
+        txid: "dcr-collateral-tx",
+        confirmations: 6,
+        observedAt: "2026-06-09T02:00:00.000Z",
+      },
+      policy: { requiredConfirmations: 6, staleAfterBlocks: 12, allowMainnet: false },
+      collateralOutputFound: true,
+      collateralAmount: 100,
+      escrowAddress: "DsEscrow",
+      platformFeeOutputFound: true,
+      platformFeeAmount: 1,
+      platformFeeAddress: "DsPlatformFee",
+      observedAt: "2026-06-09T02:00:00.000Z",
+    });
+
+    expect(observation.status).toBe("confirmed");
+    expect(observation.blockers).toEqual([]);
+    expect(observation.collateralOutputFound).toBe(true);
+    expect(observation.platformFeeOutputFound).toBe(true);
+  });
+
+  it("rejects DCR collateral observations with a missing fee output", () => {
+    const platformFee = calculatePlatformFeeBreakdown(100);
+    const observation = createDecredCollateralLockObservation({
+      id: "watch-dcr-2",
+      expectation: {
+        loanId: request.id,
+        collateralAsset: "DCR",
+        collateralAmount: 100,
+        escrowAddress: "DsEscrow",
+        platformFee,
+        platformFeeAddress: "DsPlatformFee",
+      },
+      reference: {
+        network: "decred_simnet",
+        txid: "dcr-collateral-tx",
+        confirmations: 6,
+        observedAt: "2026-06-09T02:00:00.000Z",
+      },
+      policy: { requiredConfirmations: 6, staleAfterBlocks: 12, allowMainnet: false },
+      collateralOutputFound: true,
+      collateralAmount: 100,
+      escrowAddress: "DsEscrow",
+      platformFeeOutputFound: false,
+      platformFeeAmount: 0,
+      platformFeeAddress: "DsPlatformFee",
+      observedAt: "2026-06-09T02:00:00.000Z",
+    });
+
+    expect(observation.status).toBe("rejected");
+    expect(observation.blockers).toContain("Platform fee output was not found.");
+  });
+
+  it("confirms BTC supplier disbursement observations", () => {
+    const observation = createBorrowAssetDisbursementObservation({
+      id: "watch-btc-1",
+      expectation: {
+        loanId: request.id,
+        borrowAsset: "BTC",
+        supplierId: "supplier-a",
+        expectedAmount: 0.25,
+        borrowerReceiveAddress: "tb1borrower",
+      },
+      reference: {
+        network: "bitcoin_testnet",
+        txid: "btc-disbursement-tx",
+        confirmations: 3,
+        observedAt: "2026-06-09T03:00:00.000Z",
+      },
+      policy: { requiredConfirmations: 3, staleAfterBlocks: 12, allowMainnet: false },
+      amount: 0.25,
+      borrowerReceiveAddress: "tb1borrower",
+      outputFound: true,
+      observedAt: "2026-06-09T03:00:00.000Z",
+    });
+
+    expect(observation.status).toBe("confirmed");
+    expect(observation.blockers).toEqual([]);
+    expect(observation.borrowAsset).toBe("BTC");
+  });
+
+  it("confirms EVM stablecoin disbursement observations", () => {
+    const observation = createBorrowAssetDisbursementObservation({
+      id: "watch-usdc-1",
+      expectation: {
+        loanId: request.id,
+        borrowAsset: "USDC",
+        supplierId: "supplier-stable",
+        expectedAmount: 10_000,
+        borrowerReceiveAddress: "0xBorrower",
+      },
+      reference: {
+        network: "evm_testnet",
+        txid: "evm-token-tx",
+        confirmations: 12,
+        observedAt: "2026-06-09T03:30:00.000Z",
+      },
+      policy: { requiredConfirmations: 12, staleAfterBlocks: 24, allowMainnet: false },
+      amount: 10_000,
+      borrowerReceiveAddress: "0xBorrower",
+      tokenContractAddress: "0xUsdcToken",
+      transferLogFound: true,
+      observedAt: "2026-06-09T03:30:00.000Z",
+    });
+
+    expect(observation.status).toBe("confirmed");
+    expect(observation.blockers).toEqual([]);
+    expect(observation.borrowAsset).toBe("USDC");
+    expect(observation.transferLogFound).toBe(true);
+  });
+
+  it("resolves watcher status from confirmation and blocker state", () => {
+    expect(evaluateObservationStatus({ confirmations: 0, requiredConfirmations: 3 })).toBe("pending");
+    expect(evaluateObservationStatus({ confirmations: 1, requiredConfirmations: 3 })).toBe("observed");
+    expect(evaluateObservationStatus({ confirmations: 3, requiredConfirmations: 3 })).toBe("confirmed");
+    expect(evaluateObservationStatus({ confirmations: 3, requiredConfirmations: 3, blockers: ["bad output"] })).toBe("rejected");
+    expect(evaluateObservationStatus({ confirmations: 3, requiredConfirmations: 3, reorged: true })).toBe("reorged");
   });
 
   it("reserves an eligible supplier offer without overfilling the request", () => {
