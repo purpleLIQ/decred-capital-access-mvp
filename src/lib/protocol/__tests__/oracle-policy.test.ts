@@ -38,7 +38,7 @@ describe("oracle policy scaffolding", () => {
       collateralAmount: 100,
       borrowAsset: "BTC",
       borrowAmount: 1,
-      collateralPrices: prices("DCR", [20, 20.1, 19.9]),
+      collateralPrices: prices("DCR", [20_000, 20_100, 19_900]),
       borrowAssetPrices: prices("BTC", [10_000, 10_100, 9_900]),
       now,
       config: baseConfig,
@@ -46,29 +46,22 @@ describe("oracle policy scaffolding", () => {
 
     expect(evaluation.decision).toBe("healthy");
     expect(evaluation.phase).toBe("healthy");
-    expect(evaluation.ltvBps).toBeCloseTo(5000);
+    expect(evaluation.ltvBps).toBeCloseTo(50);
     expect(evaluation.blockers).toEqual([]);
     expect(evaluation.automaticFallbackAllowed).toBe(false);
   });
 
   it("moves through warning, top-up, and arbiter review thresholds", () => {
     const warning = evaluateLoanHealth({
-      loanId: "loan-warning",
-      collateralAsset: "DCR",
-      collateralAmount: 100,
-      borrowAsset: "BTC",
-      borrowAmount: 1,
-      collateralPrices: prices("DCR", [20]),
-      borrowAssetPrices: prices("BTC", [13_200]),
-      now,
+      ...thresholdInput("loan-warning", 13_200),
       config: baseConfig,
     });
     const topUp = evaluateLoanHealth({
-      ...warningInput("loan-top-up", 14_200),
+      ...thresholdInput("loan-top-up", 14_200),
       config: baseConfig,
     });
     const arbiter = evaluateLoanHealth({
-      ...warningInput("loan-arbiter", 15_200),
+      ...thresholdInput("loan-arbiter", 15_200),
       config: baseConfig,
     });
 
@@ -82,7 +75,7 @@ describe("oracle policy scaffolding", () => {
 
   it("blocks fallback review when LTV reaches the fallback threshold", () => {
     const evaluation = evaluateLoanHealth({
-      ...warningInput("loan-fallback", 17_500),
+      ...thresholdInput("loan-fallback", 17_500),
       config: baseConfig,
     });
 
@@ -98,7 +91,7 @@ describe("oracle policy scaffolding", () => {
       collateralAmount: 100,
       borrowAsset: "BTC",
       borrowAmount: 1,
-      collateralPrices: prices("DCR", [20], "2026-06-09T11:40:00.000Z"),
+      collateralPrices: prices("DCR", [20_000], "2026-06-09T11:40:00.000Z"),
       borrowAssetPrices: prices("BTC", [10_000]),
       now,
       config: baseConfig,
@@ -144,14 +137,14 @@ describe("oracle policy scaffolding", () => {
   });
 });
 
-function warningInput(loanId: string, btcPrice: number) {
+function thresholdInput(loanId: string, btcPrice: number) {
   return {
     loanId,
     collateralAsset: "DCR" as const,
     collateralAmount: 100,
     borrowAsset: "BTC" as const,
     borrowAmount: 1,
-    collateralPrices: prices("DCR", [20]),
+    collateralPrices: prices("DCR", [200]),
     borrowAssetPrices: prices("BTC", [btcPrice]),
     now,
   };
