@@ -2,6 +2,7 @@
 
 import { ClipboardList, RefreshCw, ShieldCheck, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { BroadcastReviewGate } from "@/lib/broadcast-review";
 import type { SigningRole, SigningSession } from "@/lib/signing-collection";
 import type { TransactionReviewEnvelope } from "@/lib/transaction-review";
 
@@ -21,6 +22,17 @@ interface SigningSubmissionResponse {
   session?: SigningSession;
   accepted?: boolean;
   blockers?: string[];
+  error?: string;
+}
+
+interface BroadcastReviewListResponse {
+  reviews: BroadcastReviewGate[];
+  error?: string;
+}
+
+interface BroadcastReviewCreateResponse {
+  review?: BroadcastReviewGate;
+  canBroadcast?: false;
   error?: string;
 }
 
@@ -97,6 +109,7 @@ const sampleReadyReview: TransactionReviewEnvelope = {
 
 export function SigningSessionPanel({ review }: { review: TransactionReviewEnvelope | null }) {
   const [sessions, setSessions] = useState<SigningSession[]>([]);
+  const [broadcastReviews, setBroadcastReviews] = useState<BroadcastReviewGate[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [submissionHex, setSubmissionHex] = useState<SubmissionForm>({ borrower: "", lender: "", arbiter: "" });
   const [busy, setBusy] = useState<string | null>(null);
@@ -105,6 +118,16 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
   const activeReview = useMemo(() => review ?? sampleReadyReview, [review]);
   const isUsingSampleReview = !review;
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0] ?? null;
+  const selectedBroadcastReview = selectedSession
+    ? broadcastReviews.find((broadcastReview) => broadcastReview.sessionId === selectedSession.id) ?? null
+    : null;
+
+  const loadBroadcastReviews = useCallback(async () => {
+    const response = await fetch("/api/broadcast-reviews", { cache: "no-store" });
+    const result = (await response.json()) as BroadcastReviewListResponse;
+    if (!response.ok) throw new Error(result.error ?? "Broadcast reviews could not load.");
+    setBroadcastReviews(result.reviews);
+  }, []);
 
   const loadSessions = useCallback(async () => {
     setBusy("load");
@@ -115,12 +138,13 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
       if (!response.ok) throw new Error(result.error ?? "Signing sessions could not load.");
       setSessions(result.sessions);
       setSelectedSessionId((current) => current || result.sessions[0]?.id || "");
+      await loadBroadcastReviews();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Signing sessions could not load.");
     } finally {
       setBusy(null);
     }
-  }, []);
+  }, [loadBroadcastReviews]);
 
   async function createSession() {
     setBusy("create");
@@ -165,6 +189,31 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
       setNotice(result.session.status === "ready_for_broadcast_review" ? "Required external signatures are collected." : `${role} signature recorded.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Signature submission failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createBroadcastReviewForSelectedSession() {
+    if (!selectedSession) return;
+    setBusy("broadcast-review");
+    setNotice(null);
+    try {
+      const response = await fetch("/api/broadcast-reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: selectedSession.id }),
+      });
+      const result = (await response.json()) as BroadcastReviewCreateResponse;
+      if (!result.review) throw new Error(result.error ?? "Broadcast review was not returned.");
+      setBroadcastReviews((current) => [result.review as BroadcastReviewGate, ...current.filter((item) => item.id !== result.review?.id)]);
+      if (!response.ok) {
+        setNotice(result.review.blockers.join(" ") || result.error || "Broadcast review is blocked.");
+        return;
+      }
+      setNotice("Broadcast review created for manual operator review. Broadcasting remains disabled.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Broadcast review could not be created.");
     } finally {
       setBusy(null);
     }
@@ -245,7 +294,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
             <div className="grid gap-3 md:grid-cols-3">
               <MiniReadout label="Status" value={selectedSession.status.replaceAll("_", " ")} />
               <MiniReadout label="Submissions" value={`${selectedSession.submissions.length}/${selectedSession.requiredRoles.length}`} />
-              <MiniReadout label="Broadcast review" value={selectedSession.status === "ready_for_broadcast_review" ? "ready" : "not ready"} />
+              <MiniReadout label="Broadcast review" value={selectedBroadcastReview?.status.replaceAll("_", " ") ?? (selectedSession.status === "ready_for_broadcast_review" ? "ready" : "not ready")} />
             </div>
 
             {selectedSession.blockers.length ? (
@@ -255,6 +304,55 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
                 ))}
               </div>
             ) : null}
+
+            <div className="rounded-md border border-[#d8dfda] bg-[#f7f9f8] p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold text-[#17211d]">Broadcast review gate</p>
+                  <p className="mt-1 text-sm text-[#577067]">
+                    Creates a review decision only. It verifies fixture signatures and keeps broadcasting disabled.
+                  </p>
+                </div>
+                <button
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-[#17211d] px-3 text-sm font-semibold text-white hover:bg-[#2b3732] disabled:opacity-60"
+                  disabled={selectedSession.status !== "ready_for_broadcast_review" || busy === "broadcast-review"}
+                  onClick={createBroadcastReviewForSelectedSession}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Create broadcast review
+                </button>
+              </div>
+
+              {selectedBroadcastReview ? (
+                <div className="mt-4 space-y-3 rounded-md bg-white p-3 text-sm text-[#42524c]">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <MiniReadout label="Review status" value={selectedBroadcastReview.status.replaceAll("_", " ")} />
+                    <MiniReadout label="Can broadcast" value="no" />
+                    <MiniReadout label="Operator approval" value={selectedBroadcastReview.requiresOperatorApproval ? "required" : "not required"} />
+                  </div>
+                  {selectedBroadcastReview.blockers.length ? (
+                    <ReviewList title="Blockers" items={selectedBroadcastReview.blockers} tone="warning" />
+                  ) : null}
+                  {selectedBroadcastReview.warnings.length ? (
+                    <ReviewList title="Warnings" items={selectedBroadcastReview.warnings} tone="neutral" />
+                  ) : null}
+                  {selectedBroadcastReview.signatureResults.length ? (
+                    <div>
+                      <p className="font-semibold text-[#17211d]">Fixture signature results</p>
+                      <div className="mt-2 space-y-2">
+                        {selectedBroadcastReview.signatureResults.map((result) => (
+                          <div key={result.role} className="rounded-md border border-[#d8dfda] p-3">
+                            <p className="font-semibold capitalize">{result.role}: {result.ok ? "accepted" : "blocked"}</p>
+                            {result.blockers.length ? <ReviewList title="Result blockers" items={result.blockers} tone="warning" /> : null}
+                            {result.warnings.length ? <ReviewList title="Result warnings" items={result.warnings} tone="neutral" /> : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
 
             <div className="space-y-4">
               {selectedSession.requiredRoles.map((role) => {
@@ -306,6 +404,21 @@ function MiniReadout({ label, value }: { label: string; value: string }) {
     <div className="rounded-md bg-[#eef3f0] p-3">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#577067]">{label}</p>
       <p className="mt-1 text-lg font-semibold text-[#17211d]">{value}</p>
+    </div>
+  );
+}
+
+function ReviewList({ title, items, tone }: { title: string; items: string[]; tone: "neutral" | "warning" }) {
+  const className = tone === "warning" ? "bg-[#fff4d8] text-[#6f4d00]" : "bg-[#eef3f0] text-[#42524c]";
+
+  return (
+    <div>
+      <p className="font-semibold text-[#17211d]">{title}</p>
+      <div className="mt-2 space-y-2">
+        {items.map((item) => (
+          <div key={item} className={`rounded-md p-3 ${className}`}>{item}</div>
+        ))}
+      </div>
     </div>
   );
 }
