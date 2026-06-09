@@ -33,6 +33,7 @@ interface BroadcastReviewListResponse {
 interface BroadcastReviewCreateResponse {
   review?: BroadcastReviewGate;
   canBroadcast?: false;
+  reusedExisting?: boolean;
   error?: string;
 }
 
@@ -211,7 +212,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
         setNotice(result.review.blockers.join(" ") || result.error || "Broadcast review is blocked.");
         return;
       }
-      setNotice("Broadcast review created for manual operator review. Broadcasting remains disabled.");
+      setNotice(result.reusedExisting ? "Existing broadcast review loaded. Manual review is still required." : "Broadcast review created for manual operator review. Broadcasting remains disabled.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Broadcast review could not be created.");
     } finally {
@@ -310,7 +311,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
                 <div>
                   <p className="font-semibold text-[#17211d]">Broadcast review gate</p>
                   <p className="mt-1 text-sm text-[#577067]">
-                    Creates a review decision only. It verifies fixture signatures and keeps broadcasting disabled.
+                    Creates one review decision per signing session. It verifies fixture signatures and keeps broadcasting disabled.
                   </p>
                 </div>
                 <button
@@ -319,12 +320,17 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
                   onClick={createBroadcastReviewForSelectedSession}
                 >
                   <ShieldCheck className="h-4 w-4" />
-                  Create broadcast review
+                  {selectedBroadcastReview ? "Load broadcast review" : "Create broadcast review"}
                 </button>
               </div>
 
               {selectedBroadcastReview ? (
                 <div className="mt-4 space-y-3 rounded-md bg-white p-3 text-sm text-[#42524c]">
+                  {selectedBroadcastReview.status === "manual_review" ? (
+                    <div className="rounded-md bg-[#eef3f0] p-3 text-sm text-[#42524c]">
+                      Manual operator review required. This status is not permission to broadcast.
+                    </div>
+                  ) : null}
                   <div className="grid gap-3 md:grid-cols-3">
                     <MiniReadout label="Review status" value={selectedBroadcastReview.status.replaceAll("_", " ")} />
                     <MiniReadout label="Can broadcast" value="no" />
