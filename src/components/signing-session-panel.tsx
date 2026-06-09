@@ -327,7 +327,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
                 <div className="mt-4 space-y-3 rounded-md bg-white p-3 text-sm text-[#42524c]">
                   <div className="grid gap-3 md:grid-cols-3">
                     <MiniReadout label="Review status" value={selectedBroadcastReview.status.replaceAll("_", " ")} />
-                    <MiniReadout label="Can broadcast" value={selectedBroadcastReview.canBroadcast ? "yes" : "no"} />
+                    <MiniReadout label="Can broadcast" value="no" />
                     <MiniReadout label="Operator approval" value={selectedBroadcastReview.requiresOperatorApproval ? "required" : "not required"} />
                   </div>
                   {selectedBroadcastReview.blockers.length ? (
@@ -341,7 +341,7 @@ export function SigningSessionPanel({ review }: { review: TransactionReviewEnvel
                       <p className="font-semibold text-[#17211d]">Fixture signature results</p>
                       <div className="mt-2 space-y-2">
                         {selectedBroadcastReview.signatureResults.map((result) => (
-                          <div key={`${result.role}-${result.submittedAt}`} className="rounded-md border border-[#d8dfda] p-3">
+                          <div key={result.role} className="rounded-md border border-[#d8dfda] p-3">
                             <p className="font-semibold capitalize">{result.role}: {result.ok ? "accepted" : "blocked"}</p>
                             {result.blockers.length ? <ReviewList title="Result blockers" items={result.blockers} tone="warning" /> : null}
                             {result.warnings.length ? <ReviewList title="Result warnings" items={result.warnings} tone="neutral" /> : null}
