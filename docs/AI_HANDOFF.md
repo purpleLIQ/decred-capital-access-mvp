@@ -15,11 +15,27 @@ npm install
 npm run demo
 ```
 
-Verify:
+Verify everything:
 
 ```bash
 npm run verify
 ```
+
+Fast protocol verification:
+
+```bash
+npm run verify:protocol
+```
+
+Local workflow helpers:
+
+```bash
+npm run status:local
+npm run pr:checklist
+npm run safety:check
+```
+
+Use `verify:protocol` for protocol/domain-only changes before the full `verify` path. Use `safety:check` before opening every PR.
 
 ## Project Positioning
 
@@ -120,6 +136,7 @@ Allowed current behavior:
   - `src/lib/broadcast-review-store.ts`
   - `src/lib/broadcast-review-api-handlers.ts`
   - `src/lib/adapters/*`
+  - `src/lib/protocol/*`
 
 ## Completed Work
 
@@ -151,6 +168,8 @@ Allowed current behavior:
   - `src/app/api/broadcast-reviews/route.ts`
 - Broadcast-review UI on `/signing-sessions`.
 - Existing broadcast review reuse for a signing session.
+- Protocol domain foundation for DCR collateral, BTC/USDC/USDT borrow assets, loan requests, supplier offers/fills/positions, APR, fees, evidence summary, and liquidation placeholders.
+- Supplier offer and partial-fill state machine.
 
 ## Current Transaction Lifecycle
 
@@ -194,6 +213,29 @@ The fixture verifier expects submitted signed hex to start with:
 
 Do not use unsigned sample hex as submitted signed hex. That should be rejected.
 
+## Local Workflow
+
+Recommended execution flow:
+
+```text
+check prior PR merged
+branch from latest main
+make a focused change
+run npm run verify:protocol for protocol/domain changes
+run npm run safety:check
+run npm run verify before merge when practical
+open PR with summary, safety boundary, and verification status
+patch CI failures before continuing
+```
+
+Useful commands:
+
+- `npm run status:local` prints branch, commit, git status, Node/npm versions, scripts, and recent commits.
+- `npm run pr:checklist` prints a PR checklist with verification and safety boundary items.
+- `npm run safety:check` scans tracked source/docs/config files for blocked signing, custody, broadcast, and readiness-claim patterns.
+- `npm run test:protocol` runs only protocol tests.
+- `npm run verify:protocol` runs safety check plus protocol tests.
+
 ## Roadmap Docs
 
 Current roadmap documents:
@@ -211,23 +253,13 @@ Use these docs to prevent scope drift.
 
 ## Next Development Work
 
-Recommended next PRs after the roadmap docs:
+Recommended next PRs after the local workflow tooling:
 
-1. Add protocol domain foundation:
-   - borrow assets BTC/USDC/USDT,
-   - DCR collateral asset,
-   - loan requests,
-   - supplier offers,
-   - supplier fills,
-   - supplier positions,
-   - funding states,
-   - interest config,
-   - platform fee config.
-2. Add supplier offer and partial-fill state machine.
-3. Add platform fee and blended APR calculations.
-4. Add oracle and liquidation policy scaffolding.
-5. Add evidence bundle and hash commitment scaffolding.
-6. Add Decred collateral contract template plan/scaffold.
+1. Add platform fee and blended APR integration into borrower quote/domain flows.
+2. Add cross-chain watcher interfaces.
+3. Add oracle and liquidation policy scaffolding.
+4. Add evidence bundle hashing and commitment scaffolding.
+5. Add Decred collateral contract template plan/scaffold.
 
 ## Simnet Proof Harness
 
