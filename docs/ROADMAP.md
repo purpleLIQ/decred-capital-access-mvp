@@ -1,23 +1,62 @@
 # Roadmap
 
-## Phase 1: Finish Testnet/Simnet Structure
+This roadmap keeps the project moving toward a real Decred-backed lending product without crossing the current safety boundaries. The app is still a prototype: no real funds, no app-side signing, no app-side broadcasting, no mainnet support, and no production-readiness claim.
 
-Objective: prepare the app for real simnet proof without unsafe signing.
+## Current Baseline
 
-Deliverables:
+Implemented today:
+
+- Demo borrower and operator flows.
+- Transaction-review envelopes and readiness guards.
+- Unsigned transaction preview groundwork.
+- Simnet proof harness commands and fixture proof artifacts.
+- Standalone signing-session UI at `/signing-sessions`.
+- External signed-hex collection for required roles.
+- Fixture signature verification for sample signed hex.
+- Broadcast-review gate that returns `blocked` or `manual_review` and keeps `canBroadcast: false`.
+
+Still not implemented:
+
+- Real Decred signature verification.
+- Real borrower wallet connection.
+- Production broadcast adapter.
+- Real liquidation execution.
+- Mainnet support.
+- Legal/compliance/custody operating process.
+
+## Phase 1: Finish Review And Signing Structure
+
+Objective: keep building the non-custodial transaction lifecycle without unsafe signing or broadcasting.
+
+Delivered:
 
 - Transaction-review model.
-- Simnet adapter.
-- Wallet RPC config.
-- Unsigned transaction builder.
 - Review UI.
+- Approval and blocker model.
+- `canMoveToSigning(review)` guard.
+- Simnet adapter and wallet RPC config groundwork.
+- Unsigned transaction builder seam.
+- Signing-session state model and store.
+- Signing-session API route wrappers.
+- Signing-session UI.
+- Fixture signature verification.
+- Broadcast-review gate with broadcasting disabled.
 - Safety tests.
+
+Remaining:
+
+- Expose the broadcast-review gate through a review-only API/helper.
+- Add a UI action to create a broadcast review from a ready signing session.
+- Display status, blockers, warnings, and fixture signature results.
+- Keep `canBroadcast: false`.
 
 Success criteria:
 
-- Demo and simnet stay blocked until unsigned transaction builders exist.
+- Demo and simnet reviews stay blocked until readiness gates pass.
 - No private keys are stored server-side.
 - No transaction can move to signing without blockers cleared and approvals complete.
+- No signed transaction can move past broadcast review without manual/operator review.
+- No app-side broadcast path exists yet.
 
 ## Phase 2: Full Simnet Proof
 
@@ -28,14 +67,17 @@ Deliverables:
 - Borrower, lender, and arbiter wallets.
 - 2-of-3 escrow creation.
 - Deposit/fund/repay/release flow.
-- Liquidation path.
+- Liquidation path as transaction review, not app-side execution.
 - Complete audit trail.
+- Real unsigned transaction builders proven against running simnet wallets.
+- Real signature verification for Decred transactions.
 
 Success criteria:
 
-- Two required signers can release collateral.
+- Two required signers can release collateral in simnet.
 - No single party can move collateral alone.
 - Release and liquidation paths produce auditable simnet transaction IDs.
+- The app server still does not sign, unlock wallets, hold private keys, or silently broadcast.
 
 ## Phase 3: Autonomous Risk Engine
 
@@ -56,6 +98,7 @@ Success criteria:
 - Borrowers and operators are warned.
 - Liquidation reviews are queued automatically when all gates pass.
 - Signing and broadcast remain separate from the app server.
+- Liquidation automation evaluates, queues, alerts, and circuit-breaks. It does not execute liquidation.
 
 ## Phase 4: Trust-Minimized Arbiter Research
 
@@ -98,6 +141,7 @@ Deliverables:
 Success criteria:
 
 - Hosted alpha can run with reliable data, jobs, logs, and alerts.
+- Production services still cannot access wallet secrets or sign transactions.
 
 ## Phase 6: Revenue And Accounting
 
@@ -105,7 +149,7 @@ Objective: make the product measurable as a business.
 
 Deliverables:
 
-- Origination fee collection.
+- Origination fee collection design.
 - Platform treasury config.
 - Fee ledger.
 - Reconciliation.
@@ -114,6 +158,7 @@ Deliverables:
 Success criteria:
 
 - Every fee is traceable from quote to collection to accounting report.
+- Fee collection does not weaken custody, signing, or broadcast boundaries.
 
 ## Phase 7: Legal And Security
 
@@ -127,10 +172,12 @@ Deliverables:
 - External code/security review.
 - Operational runbooks.
 - Arbiter trust-minimization review.
+- User disclosures for prototype, testnet, and production states.
 
 Success criteria:
 
 - The product has reviewed operating limits, key boundaries, incident processes, arbiter trust assumptions, and user disclosures.
+- Claims about custody, escrow, liquidation, testnet readiness, or production readiness are backed by evidence.
 
 ## Phase 8: Limited Launch
 
@@ -148,3 +195,4 @@ Deliverables:
 Success criteria:
 
 - Small, capped loans run with clear monitoring, emergency controls, and reviewed legal/security posture.
+- Mainnet launch remains blocked until the signing, broadcast, liquidation, legal, and security gates are complete.
