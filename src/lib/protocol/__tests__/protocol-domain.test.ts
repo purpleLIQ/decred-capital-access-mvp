@@ -1,17 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addSupplierFillToFundingState,
   calculateBorrowerAprQuote,
   calculatePlatformFeeBreakdown,
   calculateWeightedSupplierAprBps,
   canActivateLoanFunding,
+  canBorrowerAcceptPartialFunding,
   createEvidencePublicSummary,
   createInitialLiquidationState,
   createLoanFundingState,
   createSupplierPositionsForLoan,
+  evaluateSupplierOfferReservation,
+  expireLoanFundingState,
+  expireSupplierOffer,
+  reserveSupplierOfferFill,
   type EvidenceBundle,
   type LoanRequest,
   type SupplierFill,
+  type SupplierOffer,
 } from "..";
 
 const request: LoanRequest = {
@@ -53,6 +60,22 @@ const fills: SupplierFill[] = [
   },
 ];
 
+const offer: SupplierOffer = {
+  id: "offer-c",
+  supplierId: "supplier-c",
+  borrowAsset: "BTC",
+  availableAmount: 0.5,
+  minFillAmount: 0.1,
+  minAprBps: 900,
+  maxDurationDays: 365,
+  minCollateralRatioBps: 15000,
+  repaymentAddress: "btc-repay-c",
+  autoFill: true,
+  status: "open",
+  createdAt: "2026-06-09T00:00:00.000Z",
+  expiresAt: "2026-06-09T12:00:00.000Z",
+};
+
 describe("protocol domain foundation", () => {
   it("tracks partial fills before the 100% v0 funding threshold is met", () => {
     const state = createLoanFundingState(request, [fills[0]]);
@@ -72,6 +95,105 @@ describe("protocol domain foundation", () => {
     expect(state.fundingProgressBps).toBe(10_000);
     expect(state.status).toBe("funded");
     expect(canActivateLoanFunding(state)).toBe(true);
+  });
+
+  it("reserves an eligible supplier offer without overfilling the request", () => {
+    const result = reserveSupplierOfferFill({
+      offer,
+      loanRequestId: request.id,
+      requestedBorrowAsset: request.borrowAsset,
+      requestedAmount: 0.5,
+      remainingRequestAmount: 0.3,
+      existingOfferFills: [],
+      durationDays: request.durationDays,
+      collateralRatioBps: 20_000,
+      now: "2026-06-09T01:00:00.000Z",
+      fillId: "fill-c",
+    });
+
+    expect(result.reservedAmount).toBe(0.3);
+    expect(result.remainingOfferAmount).toBe(0.2);
+    expect(result.offer.status).toBe("reserved");
+    expect(result.fill).toMatchObject({
+      id: "fill-c",
+      loanRequestId: request.id,
+      supplierOfferId: offer.id,
+      supplierId: offer.supplierId,
+      borrowAsset: "BTC",
+      amount: 0.3,
+      aprBps: 900,
+      status: "reserved",
+    });
+  });
+
+  it("marks a supplier offer filled when reservation consumes the remaining amount", () => {
+    const result = reserveSupplierOfferFill({
+      offer,
+      loanRequestId: request.id,
+      requestedBorrowAsset: request.borrowAsset,
+      requestedAmount: 0.5,
+      remainingRequestAmount: 0.5,
+      existingOfferFills: [],
+      durationDays: request.durationDays,
+      collateralRatioBps: 20_000,
+      now: "2026-06-09T01:00:00.000Z",
+      fillId: "fill-c",
+    });
+
+    expect(result.reservedAmount).toBe(0.5);
+    expect(result.remainingOfferAmount).toBe(0);
+    expect(result.offer.status).toBe("filled");
+  });
+
+  it("rejects ineligible supplier offers", () => {
+    const eligibility = evaluateSupplierOfferReservation({
+      offer: {
+        ...offer,
+        borrowAsset: "USDC",
+      },
+      loanRequestId: request.id,
+      requestedBorrowAsset: request.borrowAsset,
+      requestedAmount: 0.5,
+      remainingRequestAmount: 0.5,
+      existingOfferFills: [],
+      durationDays: request.durationDays,
+      collateralRatioBps: 20_000,
+      now: "2026-06-09T01:00:00.000Z",
+    });
+
+    expect(eligibility.eligible).toBe(false);
+    expect(eligibility.reasons).toContain("Supplier offer asset does not match the loan request asset.");
+  });
+
+  it("rejects supplier fills that exceed the remaining request amount", () => {
+    expect(() =>
+      addSupplierFillToFundingState({
+        request,
+        currentFills: [fills[0]],
+        fill: {
+          ...fills[1],
+          amount: 0.8,
+        },
+      }),
+    ).toThrow("Supplier fill exceeds the remaining loan request amount.");
+  });
+
+  it("expires loan funding if the deadline passes before the threshold is met", () => {
+    const state = expireLoanFundingState(request, [fills[0]], "2026-06-10T00:00:01.000Z");
+
+    expect(state.status).toBe("expired");
+    expect(state.activationEligible).toBe(false);
+  });
+
+  it("expires an open supplier offer after its deadline", () => {
+    expect(expireSupplierOffer(offer, "2026-06-09T12:00:01.000Z").status).toBe("expired");
+  });
+
+  it("allows explicit partial-funding acceptance only when borrower opted in", () => {
+    const state = createLoanFundingState({ ...request, borrowerAcceptedPartialFunding: true }, [fills[0]]);
+
+    expect(canBorrowerAcceptPartialFunding({ ...request, borrowerAcceptedPartialFunding: true }, state)).toBe(true);
+    expect(canBorrowerAcceptPartialFunding(request, state)).toBe(false);
   });
 
   it("creates supplier positions where suppliers earn only on the filled amount", () => {
