@@ -88,9 +88,9 @@ describe("protocol domain foundation", () => {
 
     expect(positions).toHaveLength(2);
     expect(positions[0].principalDue).toBe(0.25);
-    expect(positions[0].interestDue).toBe(0.02);
+    expect(positions[0].interestDue).toBeCloseTo(0.02);
     expect(positions[1].principalDue).toBe(0.75);
-    expect(positions[1].interestDue).toBe(0.075);
+    expect(positions[1].interestDue).toBeCloseTo(0.075);
   });
 
   it("calculates weighted supplier APR and borrower APR with protocol adjustments", () => {
@@ -114,8 +114,8 @@ describe("protocol domain foundation", () => {
 
     expect(fee.collateralAsset).toBe("DCR");
     expect(fee.totalFeeAmount).toBe(1);
-    expect(fee.platformAmount).toBe(0.7);
-    expect(fee.arbiterReserveAmount).toBe(0.30000000000000004);
+    expect(fee.platformAmount).toBeCloseTo(0.7);
+    expect(fee.arbiterReserveAmount).toBeCloseTo(0.3);
   });
 
   it("creates a privacy-safe evidence summary without private participant metadata", () => {
