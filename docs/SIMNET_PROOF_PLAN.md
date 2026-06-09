@@ -4,6 +4,23 @@ Simnet is the first real-network proof target. It should be isolated, repeatable
 
 See `docs/SIMNET_RUNBOOK.md` for the current local runbook and proof harness commands.
 
+## Current Status
+
+The project currently has:
+
+- simnet RPC configuration checks,
+- read-only wallet RPC probing,
+- escrow UTXO inspection,
+- unsigned transaction preview artifact generation,
+- offline artifact validation,
+- fixture proof artifact generation,
+- transaction-review handoff rules,
+- signing-session UI and external signed-hex collection,
+- fixture signature verification,
+- a broadcast-review gate that keeps `canBroadcast: false`.
+
+The fixture proof creates local JSON artifacts only. It does not prove a real simnet transaction path and must not be described as real simnet proof.
+
 ## Decred Setup
 
 - Run isolated simnet first.
@@ -11,6 +28,7 @@ See `docs/SIMNET_RUNBOOK.md` for the current local runbook and proof harness com
 - Create separate borrower, lender, and arbiter wallets.
 - Keep wallet RPC credentials in environment variables.
 - Do not store private keys server-side.
+- Do not put wallet seeds, mnemonics, passphrases, wallet files, or xprvs in app config.
 - Do not enable mainnet defaults.
 
 ## Wallet RPC Environment
@@ -22,7 +40,7 @@ Simnet RPC stays disabled until `DCR_SIMNET_ENABLED=true` is set. A complete loc
 - separate `DCRWALLET_SIMNET_LENDER_*` values,
 - separate `DCRWALLET_SIMNET_ARBITER_*` values.
 
-The app may read RPC URLs, usernames, certificate paths, and password environment variable names. It must not commit credentials, store private keys, sign transactions, or broadcast from the app-owned server process.
+The app may read RPC URLs, usernames, certificate paths, and password environment variable names. It must not commit credentials, store private keys, sign transactions, unlock wallets, or broadcast from the app-owned server process.
 
 ## Harness Commands
 
@@ -38,7 +56,31 @@ Probe read-only wallet RPC reachability:
 npm run simnet:probe-rpc
 ```
 
-The probe is restricted to read-only/unsigned methods. It does not unlock wallets, sign, broadcast, import keys, or export keys.
+Inspect configured escrow UTXOs:
+
+```bash
+npm run simnet:inspect-escrow-utxos
+```
+
+Build an unsigned simnet preview artifact:
+
+```bash
+npm run simnet:build-unsigned-preview
+```
+
+Validate local proof artifacts offline:
+
+```bash
+npm run simnet:validate-artifacts
+```
+
+Run fixture-only proof artifact generation:
+
+```bash
+npm run simnet:fixture-proof
+```
+
+The harness is restricted to config checks, read-only wallet calls, unsigned transaction construction, and local artifact validation. It does not unlock wallets, sign, broadcast, import keys, export keys, or execute liquidation.
 
 ## Required Proof Flows
 
@@ -51,18 +93,23 @@ The probe is restricted to read-only/unsigned methods. It does not unlock wallet
 7. Approve and fund loan.
 8. Detect repayment.
 9. Generate collateral release transaction review.
-10. Collect required approvals and signatures.
-11. Broadcast release on simnet.
-12. Confirm collateral release.
-13. Trigger margin warning.
-14. Evaluate liquidation policy.
-15. Generate liquidation transaction review.
-16. Execute simulated/testnet liquidation only if oracle, depth, slippage, and grace period pass.
+10. Collect required approvals.
+11. Build unsigned release preview from real simnet UTXO data.
+12. Create signing session from the ready review.
+13. Collect external borrower/lender or lender/arbiter signed hex.
+14. Run real Decred signature verification when implemented.
+15. Run broadcast review.
+16. Keep broadcast disabled until a later explicit simnet-only broadcast proof is approved.
 17. Confirm all events and audit trail.
+18. Trigger margin warning.
+19. Evaluate liquidation policy.
+20. Generate liquidation transaction review.
+21. Queue liquidation review only if oracle, depth, slippage, and grace-period gates pass.
+22. Do not execute liquidation from the app.
 
 ## Required Automated Liquidation Proof
 
-Production must not require manual liquidation. The simnet plan must prove guarded automation:
+Production must not require manual liquidation memory. The simnet plan must prove guarded automation:
 
 - liquidation watcher job,
 - loan risk re-evaluation cadence,
@@ -78,6 +125,8 @@ Production must not require manual liquidation. The simnet plan must prove guard
 - audit trail,
 - circuit breaker if oracle or DEX conditions degrade.
 
+This proof is review/queue/alert/circuit-break work. It is not liquidation execution.
+
 ## Proof Artifacts
 
 - Simnet environment setup command.
@@ -85,13 +134,18 @@ Production must not require manual liquidation. The simnet plan must prove guard
 - Environment variable template.
 - `npm run simnet:check-config` output.
 - `npm run simnet:probe-rpc` output.
-- Escrow transaction IDs.
+- `npm run simnet:inspect-escrow-utxos` output.
+- `npm run simnet:build-unsigned-preview` output.
+- `npm run simnet:validate-artifacts` output.
+- `npm run simnet:fixture-proof` output, clearly labeled fixture-only.
+- Escrow transaction IDs when real simnet proof exists.
 - Review envelope snapshots.
-- Signature collection notes.
-- Broadcast transaction IDs.
-- Release and liquidation confirmation logs.
+- Signing-session snapshots.
+- Broadcast-review snapshots.
+- Signature verification notes.
+- Release and liquidation confirmation logs only after explicit simnet proof reaches that stage.
 - Verification command output.
 
 ## Pass/Fail Rule
 
-If a flow requires server-side private keys, silent signing, silent broadcast, or a mainnet assumption, the proof fails.
+If a flow requires server-side private keys, wallet secrets in app config, wallet unlock from the app, silent signing, silent broadcast, liquidation execution, or a mainnet assumption, the proof fails.

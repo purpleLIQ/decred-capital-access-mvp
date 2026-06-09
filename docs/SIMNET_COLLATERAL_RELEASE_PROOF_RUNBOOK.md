@@ -14,7 +14,10 @@ A run passes only if all of these are true:
 - an unsigned collateral-release transaction preview is generated from simnet data,
 - the transaction-review layer marks the release as ready only after blockers are clear and required approvals are present,
 - the signing-session flow accepts externally signed transaction hex from required roles,
+- the session can reach `ready_for_broadcast_review`,
+- broadcast review keeps `canBroadcast: false` when exposed,
 - no server-side private keys are stored,
+- no wallet secrets are placed in app config,
 - no wallet unlock is performed by the app,
 - no app-owned signing RPC is called,
 - no silent broadcast occurs,
@@ -51,6 +54,8 @@ Required mode flag:
 ```powershell
 $env:DCR_SIMNET_ENABLED="true"
 ```
+
+Do not put wallet seeds, mnemonics, wallet files, xprvs, passphrases, or private keys in `.env.local` or `env.local.ps1`.
 
 ## Proof Commands
 
@@ -110,7 +115,7 @@ Expected artifact:
 artifacts/simnet/unsigned-release-preview.json
 ```
 
-The artifact should include a simnet unsigned transaction preview. It must not include private keys, wallet passphrases, seeds, or signed/broadcast transaction state.
+The artifact should include a simnet unsigned transaction preview. It must not include private keys, wallet passphrases, seeds, wallet files, xprvs, signed transaction state, or broadcast transaction state.
 
 ### 5. Validate artifacts
 
@@ -121,6 +126,14 @@ npm run simnet:validate-artifacts
 Expected result: pass.
 
 If validation fails, do not proceed to signing-session testing.
+
+### 6. Optional fixture-only artifact check
+
+```powershell
+npm run simnet:fixture-proof
+```
+
+This creates local JSON artifacts only. It does not prove real simnet escrow, real Decred signatures, broadcast readiness, production readiness, or mainnet readiness.
 
 ## App-Level Review Flow
 
@@ -160,6 +173,12 @@ ready_for_broadcast_review
 
 This status does not permit automatic broadcast.
 
+9. When broadcast review is exposed through API/UI, confirm it returns `blocked` or `manual_review` while keeping:
+
+```text
+canBroadcast: false
+```
+
 ## Evidence to Attach to the Tracking PR
 
 Attach or summarize these artifacts:
@@ -169,21 +188,24 @@ Attach or summarize these artifacts:
 - `artifacts/simnet/escrow-utxos.json`,
 - `artifacts/simnet/unsigned-release-preview.json`,
 - `artifacts/simnet/validate-artifacts.json` if generated,
-- screenshots of the transaction review and signing-session page.
+- `artifacts/simnet/fixture-proof*.json` only if clearly labeled fixture-only,
+- screenshots of the transaction review and signing-session page,
+- broadcast-review screenshot after API/UI exposure exists.
 
-Do not attach wallet files, seeds, private keys, passphrases, or real credentials.
+Do not attach wallet files, seeds, private keys, passphrases, xprvs, or real credentials.
 
 ## Failure Conditions
 
 Stop the proof run if any of these happen:
 
 - any endpoint is mainnet or looks like mainnet,
-- a private key, seed, mnemonic, passphrase, or wallet file is requested,
+- a private key, seed, mnemonic, passphrase, xprv, or wallet file is requested,
 - the app attempts wallet unlock,
 - the app attempts app-owned signing,
 - the app attempts silent broadcast,
 - a release transaction can proceed without required approvals,
 - a signing session reaches readiness without the required external signatures,
+- broadcast review sets `canBroadcast: true` before explicit simnet broadcast work is approved,
 - artifact validation fails.
 
 ## Next Development After a Passing Run
@@ -191,8 +213,8 @@ Stop the proof run if any of these happen:
 Only after this proof passes should we build:
 
 1. signature verification against Decred tooling,
-2. a broadcast-review model,
-3. operator-only explicit broadcast gating for simnet,
+2. broadcast-review API/UI exposure with broadcast still disabled,
+3. operator-only explicit broadcast gating for simnet after review and proof,
 4. liquidation watcher queueing and alerting.
 
 Do not add production broadcast or liquidation execution from this proof run.
