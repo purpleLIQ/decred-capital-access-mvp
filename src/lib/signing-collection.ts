@@ -34,9 +34,13 @@ export interface SigningSession {
 
 const roleMap: Record<string, SigningRole | null> = {
   Borrower: "borrower",
+  borrower: "borrower",
   Lender: "lender",
+  lender: "lender",
   Arbiter: "arbiter",
+  arbiter: "arbiter",
   Operator: null,
+  operator: null,
 };
 
 const sensitiveFieldNames = [

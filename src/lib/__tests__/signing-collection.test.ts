@@ -46,6 +46,17 @@ describe("non-custodial signing collection", () => {
     expect(canMoveToBroadcastReview(session)).toBe(false);
   });
 
+  it("accepts lowercase review approval roles from app envelopes", () => {
+    const session = createSigningSession({
+      ...readyReview,
+      requiredApprovals: ["borrower", "lender", "operator"],
+    });
+
+    expect(session.status).toBe("collecting");
+    expect(session.requiredRoles).toEqual(["borrower", "lender"]);
+    expect(session.blockers).toEqual([]);
+  });
+
   it("blocks demo and non-ready reviews", () => {
     const session = createSigningSession({
       ...readyReview,
