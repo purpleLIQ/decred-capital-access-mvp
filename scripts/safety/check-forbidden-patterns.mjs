@@ -30,10 +30,6 @@ const includedExtensions = new Set([
   ".mjs",
   ".js",
   ".jsx",
-  ".json",
-  ".md",
-  ".yml",
-  ".yaml",
 ]);
 
 const files = execSync("git ls-files", { encoding: "utf8" })
