@@ -10,6 +10,7 @@ import {
   createEvidencePublicSummary,
   createInitialLiquidationState,
   createLoanFundingState,
+  createLoanQuote,
   createSupplierPositionsForLoan,
   evaluateSupplierOfferReservation,
   expireLoanFundingState,
@@ -76,6 +77,15 @@ const offer: SupplierOffer = {
   expiresAt: "2026-06-09T12:00:00.000Z",
 };
 
+const interestRateConfig = {
+  borrowAsset: "BTC" as const,
+  minimumAprBps: 500,
+  maximumAprBps: 2500,
+  protocolSpreadBps: 100,
+  durationPremiumBps: 25,
+  collateralRiskPremiumBps: 75,
+};
+
 describe("protocol domain foundation", () => {
   it("tracks partial fills before the 100% v0 funding threshold is met", () => {
     const state = createLoanFundingState(request, [fills[0]]);
@@ -95,6 +105,56 @@ describe("protocol domain foundation", () => {
     expect(state.fundingProgressBps).toBe(10_000);
     expect(state.status).toBe("funded");
     expect(canActivateLoanFunding(state)).toBe(true);
+  });
+
+  it("creates a full quote with blended APR, supplier allocations, and DCR fee split", () => {
+    const quote = createLoanQuote({
+      request,
+      fills,
+      interestRateConfig,
+    });
+
+    expect(quote.activationEligible).toBe(true);
+    expect(quote.interestRateQuote.weightedSupplierAprBps).toBe(950);
+    expect(quote.interestRateQuote.borrowerAprBps).toBe(1150);
+    expect(quote.borrowerPrincipalDue).toBe(1);
+    expect(quote.borrowerInterestDue).toBeCloseTo(0.115);
+    expect(quote.borrowerTotalDue).toBeCloseTo(1.115);
+    expect(quote.platformFee.totalFeeAmount).toBe(1);
+    expect(quote.platformFee.platformAmount).toBeCloseTo(0.7);
+    expect(quote.platformFee.arbiterReserveAmount).toBeCloseTo(0.3);
+    expect(quote.collateralRequiredWithFee).toBe(101);
+    expect(quote.supplierAllocations).toHaveLength(2);
+    expect(quote.supplierAllocations[0]).toMatchObject({
+      supplierId: "supplier-a",
+      filledAmount: 0.25,
+      aprBps: 800,
+      principalDue: 0.25,
+      fundingShareBps: 2500,
+    });
+    expect(quote.supplierAllocations[0].interestDue).toBeCloseTo(0.02);
+    expect(quote.supplierAllocations[1]).toMatchObject({
+      supplierId: "supplier-b",
+      filledAmount: 0.75,
+      aprBps: 1000,
+      principalDue: 0.75,
+      fundingShareBps: 7500,
+    });
+    expect(quote.supplierAllocations[1].interestDue).toBeCloseTo(0.075);
+  });
+
+  it("creates a partial-fill quote without marking activation eligible", () => {
+    const quote = createLoanQuote({
+      request,
+      fills: [fills[0]],
+      interestRateConfig,
+    });
+
+    expect(quote.activationEligible).toBe(false);
+    expect(quote.fundingState.status).toBe("partially_filled");
+    expect(quote.borrowerPrincipalDue).toBe(0.25);
+    expect(quote.supplierAllocations).toHaveLength(1);
+    expect(quote.supplierAllocations[0].fundingShareBps).toBe(10_000);
   });
 
   it("reserves an eligible supplier offer without overfilling the request", () => {
@@ -218,14 +278,7 @@ describe("protocol domain foundation", () => {
   it("calculates weighted supplier APR and borrower APR with protocol adjustments", () => {
     expect(calculateWeightedSupplierAprBps(fills)).toBe(950);
 
-    const quote = calculateBorrowerAprQuote(fills, {
-      borrowAsset: "BTC",
-      minimumAprBps: 500,
-      maximumAprBps: 2500,
-      protocolSpreadBps: 100,
-      durationPremiumBps: 25,
-      collateralRiskPremiumBps: 75,
-    });
+    const quote = calculateBorrowerAprQuote(fills, interestRateConfig);
 
     expect(quote.weightedSupplierAprBps).toBe(950);
     expect(quote.borrowerAprBps).toBe(1150);
