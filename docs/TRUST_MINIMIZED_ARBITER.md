@@ -10,6 +10,17 @@ Minimize trust without pretending the product is trustless before it is proven.
 
 The near-term product should explain the arbiter clearly. Future versions should investigate whether Decred script can enforce more of the escrow behavior directly.
 
+## Current MVP Position
+
+Current implemented work supports the 2-of-3 model at the review and signing-session level:
+
+- transaction reviews track borrower, lender, arbiter, and operator approvals,
+- signing sessions collect external signed hex for borrower, lender, and arbiter roles,
+- fixture signature verification supports sample signed-hex testing,
+- broadcast review is a manual/review-only gate with `canBroadcast: false`.
+
+This does not prove trustless lending. It does not prove real Decred signatures. It does not remove the arbiter.
+
 ## Questions To Answer
 
 - Which arbiter duties are purely dispute resolution?
@@ -70,7 +81,9 @@ Liquidation depends on price, liquidity, slippage, grace periods, and borrower n
 - Do not claim trustless lending.
 - Do not remove the arbiter before simnet proves safer alternatives.
 - Do not add mainnet script experiments.
-- Do not let server automation sign or broadcast.
+- Do not let server automation sign or submit transactions.
+- Do not treat fixture signature verification as real Decred signature verification.
+- Do not treat broadcast-review status as permission to submit a transaction.
 
 ## Required Proof Before Adoption
 
@@ -80,9 +93,12 @@ Any script-assisted arbiter design needs:
 - exact script/spend path description,
 - simnet proof transactions,
 - failure case tests,
+- real signature verification,
 - external security review before mainnet use,
 - user-facing disclosure of remaining trust assumptions.
 
 ## Current Recommendation
 
 Continue the MVP with 2-of-3 escrow and external signing collection. In parallel, research Decred script-assisted escrow paths that reduce arbiter power in later versions.
+
+Keep user-facing language conservative: trust-minimized research is active, but trustless escrow is not proven.
