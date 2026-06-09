@@ -28,7 +28,16 @@ Implemented as API/store/UI groundwork:
 - `/signing-sessions` page,
 - tests for schema, store, handler, and collection behavior.
 
-The store is prototype-only. Production needs a database-backed implementation with auth, audit logs, replay protection, session expiry, and stronger abuse controls.
+Implemented for broadcast review:
+
+- `src/lib/broadcast-review.ts`,
+- `src/lib/broadcast-review-store.ts`,
+- `src/lib/broadcast-review-api-handlers.ts`,
+- `src/app/api/broadcast-reviews/route.ts`,
+- `/signing-sessions` action to create or load one broadcast review per signing session,
+- UI display for review status, blockers, warnings, fixture signature results, and manual-review state.
+
+The stores are prototype-only. Production needs database-backed implementations with auth, audit logs, replay protection, session expiry, and stronger abuse controls.
 
 ## Current Demo Flow
 
@@ -40,6 +49,8 @@ The current test UI flow is:
 → paste borrower fake signed hex
 → paste lender fake signed hex
 → session becomes ready_for_broadcast_review
+→ Create broadcast review
+→ review shows blocked or manual_review with canBroadcast false
 ```
 
 Fixture signed hex values for the sample flow:
@@ -67,6 +78,7 @@ Do not use unsigned sample hex as submitted signed hex. That should be rejected.
 - Move a complete signing session to `ready_for_broadcast_review`.
 - Run fixture signature verification against sample signed hex.
 - Send a completed session into a broadcast-review gate that still keeps broadcasting disabled.
+- Reuse the existing broadcast review for a session instead of creating duplicate review state.
 
 ## Not Allowed
 
@@ -111,21 +123,24 @@ It does not perform real Decred transaction signature verification yet. Do not d
 
 `ready_for_broadcast_review` does not mean broadcast is allowed. It means the signing session has enough external signed-hex submissions for the broadcast-review layer to inspect.
 
-Implemented in `src/lib/broadcast-review.ts`, the current broadcast-review gate:
+The current broadcast-review gate:
 
 - evaluates completed `ready_for_broadcast_review` signing sessions,
 - runs fixture signature verification for each external signature submission,
 - returns `blocked` or `manual_review`,
 - keeps `canBroadcast: false`,
-- requires operator approval before any future broadcast path.
+- requires operator approval before any future broadcast path,
+- is exposed through `/api/broadcast-reviews`,
+- is shown on `/signing-sessions`,
+- reuses the existing review for a signing session instead of creating duplicates.
+
+`manual_review` is a stop-and-check state. It is not permission to broadcast.
 
 Broadcast remains out of scope for this phase. There is no broadcast button, no production broadcast adapter, and no mainnet broadcast path.
 
 ## Next Work
 
-1. Expose the broadcast-review gate through a review-only API/helper.
-2. Add a UI action on `/signing-sessions` to create a broadcast review.
-3. Display broadcast-review status, blockers, warnings, and fixture signature results.
-4. Keep `canBroadcast: false`.
-5. Replace fixture signature verification with real Decred signature verification after simnet proof work is ready.
-6. Prove the full path in simnet before testnet.
+1. Replace fixture signature verification with real Decred signature verification after simnet proof work is ready.
+2. Persist signing sessions and broadcast reviews in a database-backed store.
+3. Add stronger auth, audit, expiry, and replay protection around signing and broadcast-review flows.
+4. Prove the full path in simnet before testnet.

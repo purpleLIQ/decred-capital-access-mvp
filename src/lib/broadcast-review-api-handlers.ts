@@ -17,17 +17,18 @@ export function handleCreateBroadcastReview(input: unknown): ApiHandlerResponse<
     return { status: 400, body: { error: "sessionId is required." } };
   }
 
-  const review = createAndStoreBroadcastReview(sessionId);
+  const result = createAndStoreBroadcastReview(sessionId);
 
-  if (!review) {
+  if (!result) {
     return { status: 404, body: { error: "Signing session not found." } };
   }
 
   return {
-    status: review.status === "blocked" ? 400 : 200,
+    status: result.review.status === "blocked" ? 400 : 200,
     body: {
-      review,
+      review: result.review,
       canBroadcast: false,
+      reusedExisting: result.reusedExisting,
     },
   };
 }
