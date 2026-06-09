@@ -103,7 +103,17 @@ This does not prove real Decred signatures.
 
 ## Broadcast Review Operations
 
-The broadcast-review gate currently exists as a pure library layer. It is not yet exposed through an API/UI route.
+The broadcast-review gate is exposed through:
+
+```text
+/api/broadcast-reviews
+```
+
+and through the signing-session UI:
+
+```text
+/signing-sessions
+```
 
 The gate may return:
 
@@ -118,7 +128,9 @@ canBroadcast: false
 
 Operator review should treat broadcast review as a stop-and-check layer, not permission to broadcast. There is no broadcast button, no production broadcast adapter, and no mainnet broadcast path.
 
-Monitor after API/UI exposure is added:
+Repeated creation attempts for the same signing session should reuse the existing broadcast review instead of creating duplicate review state.
+
+Monitor:
 
 - sessions ready for broadcast review,
 - blocked broadcast reviews,
