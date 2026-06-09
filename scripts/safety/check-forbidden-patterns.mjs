@@ -15,6 +15,14 @@ const forbiddenPatterns = [
   { label: "mainnet-ready claim", pattern: /mainnet[-\s]?ready/i },
 ];
 
+const reviewedDefensiveReferences = [
+  {
+    path: "src/lib/signing-collection.ts",
+    reason: "Rejects private-key-like field names and warns users not to submit secrets.",
+    patterns: [/private_?key/i, /\bwif\b/i, /\bseed\b/i, /\bmnemonic\b/i, /wallet_?passphrase/i, /\bpassphrase\b/i, /\bxprv\b/i],
+  },
+];
+
 const excludedPathPrefixes = [
   "node_modules/",
   ".git/",
@@ -48,7 +56,7 @@ for (const file of files) {
     const normalizedLine = line.replace(/\s+/g, " ");
 
     for (const forbidden of forbiddenPatterns) {
-      if (forbidden.pattern.test(normalizedLine)) {
+      if (forbidden.pattern.test(normalizedLine) && !isReviewedDefensiveReference(file, normalizedLine)) {
         findings.push({
           file,
           lineNumber: index + 1,
@@ -77,4 +85,10 @@ console.log("No forbidden safety patterns found.");
 function getExtension(path) {
   const index = path.lastIndexOf(".");
   return index === -1 ? "" : path.slice(index);
+}
+
+function isReviewedDefensiveReference(path, line) {
+  return reviewedDefensiveReferences.some(
+    (reference) => reference.path === path && reference.patterns.some((pattern) => pattern.test(line)),
+  );
 }
