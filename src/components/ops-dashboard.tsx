@@ -72,13 +72,21 @@ export function OpsDashboard() {
               Read-only operational visibility for demo mode, oracle health, loan counts, and production guardrails.
             </p>
           </div>
-          <button
-            className="inline-flex h-11 items-center justify-center rounded-md bg-[#155e59] px-4 text-sm font-semibold text-white hover:bg-[#104d49] disabled:opacity-60"
-            disabled={busy}
-            onClick={refreshHealth}
-          >
-            {busy ? "Refreshing..." : "Refresh health"}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="inline-flex h-11 items-center justify-center rounded-md border border-[#155e59]/25 bg-white px-4 text-sm font-semibold text-[#155e59] hover:bg-[#e3f4ef]"
+              href="/ops/protocol-scenario"
+            >
+              Protocol scenario
+            </Link>
+            <button
+              className="inline-flex h-11 items-center justify-center rounded-md bg-[#155e59] px-4 text-sm font-semibold text-white hover:bg-[#104d49] disabled:opacity-60"
+              disabled={busy}
+              onClick={refreshHealth}
+            >
+              {busy ? "Refreshing..." : "Refresh health"}
+            </button>
+          </div>
         </header>
 
         {error ? (
