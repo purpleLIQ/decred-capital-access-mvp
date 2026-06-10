@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { decredAdapter } from "@/lib/adapters/decred-adapter";
 import { ticketCollateralNote } from "@/lib/fixtures";
 import { listEvents, listLoans } from "@/lib/demo-db";
+import { getDemoProtocolScenario } from "@/lib/demo-scenario-adapter";
 import { getMarketSnapshot } from "@/lib/price-oracle";
 import { classifyRisk } from "@/lib/risk";
 
@@ -23,6 +24,7 @@ export async function GET() {
     events,
     escrowPreview: decredAdapter.createDemoEscrow(primaryLoan?.ref ?? "DCR-DEMO"),
     ticketCollateralNote,
+    protocolScenario: getDemoProtocolScenario(),
     trustModel: [
       "Demo mode never touches mainnet funds or private keys.",
       "The intended mainnet custody model is 2-of-3 Decred multisig.",
