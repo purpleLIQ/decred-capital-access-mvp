@@ -2,6 +2,7 @@ export * from "./arbiter-state";
 export * from "./assets";
 export * from "./collateral-templates";
 export * from "./evidence";
+export * from "./fallback-readiness";
 export * from "./interest-rates";
 export * from "./liquidation-states";
 export * from "./loan-quotes";
