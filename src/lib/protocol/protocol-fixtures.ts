@@ -11,9 +11,9 @@ import {
   type EvidenceBundle,
   type EvidenceHashCommitment,
 } from "./evidence";
+import type { InterestRateConfig } from "./interest-rates";
 import {
   createLoanQuote,
-  type InterestRateConfig,
   type LoanQuote,
 } from "./loan-quotes";
 import type { LoanRequest } from "./loan-requests";
