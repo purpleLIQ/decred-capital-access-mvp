@@ -19,6 +19,16 @@ describe("GET /api/protocol-scenario", () => {
     expect(payload.disbursementObservations[0].status).toBe("confirmed");
   });
 
+  it("includes the operator-readable review report", async () => {
+    const response = await GET();
+    const payload = await response.json();
+
+    expect(payload.report.id).toBe("scenario-report:loan-request-fixture-1");
+    expect(payload.report.overallStatus).toBe("pass");
+    expect(payload.report.sections).toHaveLength(3);
+    expect(payload.report.notes).toContain("Report generation is read-only.");
+  });
+
   it("includes explicit read-only notes", async () => {
     const response = await GET();
     const payload = await response.json();
