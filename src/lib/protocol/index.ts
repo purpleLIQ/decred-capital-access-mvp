@@ -1,3 +1,4 @@
+export * from "./arbiter-state";
 export * from "./assets";
 export * from "./collateral-templates";
 export * from "./evidence";
