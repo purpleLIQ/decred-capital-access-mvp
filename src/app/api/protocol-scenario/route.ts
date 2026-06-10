@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDemoProtocolScenario } from "../../../../lib/demo-scenario-adapter";
-import { createProtocolFixtureScenario } from "../../../../lib/protocol/protocol-fixtures";
+import { getDemoProtocolScenario } from "../../../lib/demo-scenario-adapter";
+import { createProtocolFixtureScenario } from "../../../lib/protocol/protocol-fixtures";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
