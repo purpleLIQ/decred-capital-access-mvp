@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
+import { ProtocolScenarioPanel, type DemoProtocolScenario } from "@/components/protocol-scenario-panel";
 import {
   buildPreviewQuote,
   calculateBorrowFromLtv,
@@ -32,6 +33,7 @@ type DemoLoan = Loan & {
 type DemoPayload = {
   market: MarketSnapshot;
   loans: DemoLoan[];
+  protocolScenario?: DemoProtocolScenario;
 };
 
 const initialDcrUsd = 12.13;
@@ -202,6 +204,7 @@ export function BorrowFlow() {
                 <TerminalStat label="escrow" value="2-of-3" detail="preview" ok />
               </div>
             </div>
+            <ProtocolScenarioPanel scenario={payload?.protocolScenario} />
           </div>
 
           <section id="borrow" className="min-w-0 rounded-[2rem] border border-[#70cbff]/20 bg-[#edf7f4] p-2 text-[#091440] shadow-2xl shadow-black/35 sm:p-3 lg:self-start">
