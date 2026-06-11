@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+type ReportStatus = "pass" | "review" | "blocked";
+
 type ProtocolScenarioPayload = {
   readOnly: boolean;
   summary: {
@@ -34,6 +36,22 @@ type ProtocolScenarioPayload = {
       network: string;
       blockHeight?: number;
     };
+  };
+  report: {
+    id: string;
+    overallStatus: ReportStatus;
+    generatedAt: string;
+    sections: Array<{
+      id: string;
+      title: string;
+      checks: Array<{
+        id: string;
+        label: string;
+        status: ReportStatus;
+        detail: string;
+      }>;
+    }>;
+    notes: string[];
   };
   notes: string[];
 };
@@ -97,7 +115,29 @@ export function OpsProtocolScenario() {
               <Metric icon={<CheckCircle2 className="h-5 w-5" />} label="Funding" value={payload.summary.fundingStatus} detail={payload.summary.activationEligible ? "Activation eligible" : "Waiting"} />
               <Metric icon={<ShieldCheck className="h-5 w-5" />} label="Collateral" value={payload.summary.collateralObservationStatus} detail={payload.summary.collateralTemplateStatus.replaceAll("_", " ")} />
               <Metric icon={<Database className="h-5 w-5" />} label="Evidence" value={payload.summary.evidenceRecordStatus} detail={shortHash(payload.summary.evidenceCommitmentHash)} />
-              <Metric icon={<CheckCircle2 className="h-5 w-5" />} label="Mode" value={payload.readOnly ? "Read-only" : "Review"} detail="No mutation controls" />
+              <Metric icon={<CheckCircle2 className="h-5 w-5" />} label="Report" value={payload.report.overallStatus} detail={`Generated ${shortDateTime(payload.report.generatedAt)}`} />
+            </section>
+
+            <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Scenario review report</h2>
+                  <p className="mt-1 text-sm text-[#577067]">{payload.report.id}</p>
+                </div>
+                <StatusBadge status={payload.report.overallStatus} />
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                {payload.report.sections.map((section) => (
+                  <div key={section.id} className="rounded-lg border border-[#d8dfda] bg-[#fbfcfb] p-4">
+                    <h3 className="font-semibold">{section.title}</h3>
+                    <div className="mt-3 space-y-2">
+                      {section.checks.map((check) => (
+                        <CheckRow key={check.id} label={check.label} status={check.status} detail={check.detail} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
 
             <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
@@ -125,7 +165,7 @@ export function OpsProtocolScenario() {
             <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
               <h2 className="text-xl font-semibold">Inspection notes</h2>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {payload.notes.map((note) => (
+                {[...payload.notes, ...payload.report.notes].map((note) => (
                   <div key={note} className="rounded-md bg-[#f7f9f8] p-3 text-sm text-[#42524c]">
                     {note}
                   </div>
@@ -158,6 +198,29 @@ function Metric({ icon, label, value, detail }: { icon: ReactNode; label: string
   );
 }
 
+function CheckRow({ label, status, detail }: { label: string; status: ReportStatus; detail: string }) {
+  return (
+    <div className="rounded-md bg-white px-3 py-2 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[#42524c]">{label}</span>
+        <StatusBadge status={status} />
+      </div>
+      <p className="mt-1 text-xs text-[#6b7b74]">{detail}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: ReportStatus }) {
+  const className =
+    status === "pass"
+      ? "bg-[#e3f4ef] text-[#155e59]"
+      : status === "review"
+        ? "bg-[#fff4d8] text-[#855d00]"
+        : "bg-[#ffe8e5] text-[#8b2f22]";
+
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${className}`}>{status}</span>;
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md bg-[#f7f9f8] px-3 py-2 text-sm">
@@ -173,4 +236,13 @@ function Notice({ children }: { children: ReactNode }) {
 
 function shortHash(hash: string): string {
   return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
+}
+
+function shortDateTime(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
