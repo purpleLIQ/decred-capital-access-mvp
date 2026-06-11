@@ -29,6 +29,18 @@ describe("GET /api/protocol-scenario", () => {
     expect(payload.report.notes).toContain("Report generation is read-only.");
   });
 
+  it("includes roadmap guidance for the next product build steps", async () => {
+    const response = await GET();
+    const payload = await response.json();
+
+    expect(payload.roadmapGuidance).toHaveLength(9);
+    expect(payload.roadmapGuidance.find((item: { track: string }) => item.track === "supplier_funding")?.nextBuildStep).toBe(
+      "Connect supplier fills to the borrower-facing quote and demo flow.",
+    );
+    expect(payload.roadmapGuidance.find((item: { track: string }) => item.track === "platform_fee")?.roadmapPhase).toBe("borrower quote integration");
+    expect(payload.roadmapGuidance.find((item: { track: string }) => item.track === "fallback_liquidation")?.currentImplementationStatus).toBe("blocked");
+  });
+
   it("includes explicit read-only notes", async () => {
     const response = await GET();
     const payload = await response.json();
