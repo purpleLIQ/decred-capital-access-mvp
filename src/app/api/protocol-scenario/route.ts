@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDemoProtocolScenario } from "../../../lib/demo-scenario-adapter";
 import { createProtocolFixtureScenario } from "../../../lib/protocol/protocol-fixtures";
+import { createProtocolRoadmapGuidance } from "../../../lib/protocol/roadmap-guidance";
 import { createScenarioReviewReport } from "../../../lib/scenario-report";
 
 export const runtime = "nodejs";
@@ -10,10 +11,12 @@ export const revalidate = 0;
 export async function GET() {
   const scenario = createProtocolFixtureScenario();
   const generatedAt = "2026-06-10T12:10:00.000Z";
+  const report = createScenarioReviewReport({ scenario, generatedAt });
 
   return NextResponse.json({
     summary: getDemoProtocolScenario(),
-    report: createScenarioReviewReport({ scenario, generatedAt }),
+    report,
+    roadmapGuidance: createProtocolRoadmapGuidance(report),
     loanRequest: scenario.loanRequest,
     quote: scenario.quote,
     evidence: {
