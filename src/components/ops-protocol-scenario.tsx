@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 type ReportStatus = "pass" | "review" | "blocked";
+type RoadmapStatus = "complete" | "partial" | "blocked" | "not_started";
+type RoadmapScenarioStatus = "pass" | "warning" | "blocked";
 
 type ProtocolScenarioPayload = {
   readOnly: boolean;
@@ -53,6 +55,15 @@ type ProtocolScenarioPayload = {
     }>;
     notes: string[];
   };
+  roadmapGuidance: Array<{
+    track: string;
+    label: string;
+    roadmapPhase: string;
+    currentImplementationStatus: RoadmapStatus;
+    scenarioStatus: RoadmapScenarioStatus;
+    nextBuildStep: string;
+    notes: string[];
+  }>;
   notes: string[];
 };
 
@@ -116,6 +127,38 @@ export function OpsProtocolScenario() {
               <Metric icon={<ShieldCheck className="h-5 w-5" />} label="Collateral" value={payload.summary.collateralObservationStatus} detail={payload.summary.collateralTemplateStatus.replaceAll("_", " ")} />
               <Metric icon={<Database className="h-5 w-5" />} label="Evidence" value={payload.summary.evidenceRecordStatus} detail={shortHash(payload.summary.evidenceCommitmentHash)} />
               <Metric icon={<CheckCircle2 className="h-5 w-5" />} label="Report" value={payload.report.overallStatus} detail={`Generated ${shortDateTime(payload.report.generatedAt)}`} />
+            </section>
+
+            <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Implementation roadmap</h2>
+                  <p className="mt-1 text-sm text-[#577067]">Where the protocol is, what is blocked, and what should be built next.</p>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                {payload.roadmapGuidance.map((item) => (
+                  <div key={item.track} className="rounded-lg border border-[#d8dfda] bg-[#fbfcfb] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold">{item.label}</h3>
+                        <p className="mt-1 text-xs text-[#6b7b74]">{item.roadmapPhase}</p>
+                      </div>
+                      <RoadmapStatusBadge status={item.scenarioStatus} />
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      <Row label="Current" value={formatToken(item.currentImplementationStatus)} />
+                      <Row label="Scenario" value={formatToken(item.scenarioStatus)} />
+                    </div>
+                    <p className="mt-3 rounded-md bg-white p-3 text-sm font-medium text-[#17211d]">{item.nextBuildStep}</p>
+                    <ul className="mt-3 space-y-1 text-xs text-[#577067]">
+                      {item.notes.map((note) => (
+                        <li key={note}>• {note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             </section>
 
             <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
@@ -221,6 +264,17 @@ function StatusBadge({ status }: { status: ReportStatus }) {
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${className}`}>{status}</span>;
 }
 
+function RoadmapStatusBadge({ status }: { status: RoadmapScenarioStatus }) {
+  const className =
+    status === "pass"
+      ? "bg-[#e3f4ef] text-[#155e59]"
+      : status === "warning"
+        ? "bg-[#fff4d8] text-[#855d00]"
+        : "bg-[#ffe8e5] text-[#8b2f22]";
+
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${className}`}>{status}</span>;
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md bg-[#f7f9f8] px-3 py-2 text-sm">
@@ -245,4 +299,8 @@ function shortDateTime(value: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatToken(value: string): string {
+  return value.replaceAll("_", " ");
 }
