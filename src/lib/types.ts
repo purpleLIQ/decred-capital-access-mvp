@@ -86,6 +86,22 @@ export interface MarketSnapshot {
   updatedAt: string;
 }
 
+export interface ProtocolQuoteSummary {
+  loanRequestId: string;
+  fundingStatus: string;
+  fundingProgressBps: number;
+  activationEligible: boolean;
+  weightedSupplierAprBps: number;
+  borrowerAprBps: number;
+  platformFeeDcr: number;
+  arbiterReserveDcr: number;
+  collateralRequiredWithFeeDcr: number;
+  supplierFillCount: number;
+  supplierFilledAmount: number;
+  nextBuildStep: string;
+  notes: string[];
+}
+
 export interface Quote {
   collateralDcr: number;
   borrowAmount: number;
@@ -97,6 +113,7 @@ export interface Quote {
   liquidationThresholdBps: number;
   originationFee: number;
   estimatedAprBps: number;
+  protocolQuote?: ProtocolQuoteSummary;
   warnings: string[];
 }
 
