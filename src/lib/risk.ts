@@ -1,3 +1,4 @@
+import { createBorrowerProtocolQuoteSummary } from "./borrower-protocol-quote";
 import { applyBps, protocolConfig } from "./protocol-config";
 import type { MarketSnapshot, Quote, RiskLevel } from "./types";
 
@@ -80,6 +81,11 @@ export function buildQuote(input: {
     liquidationThresholdBps: protocolConfig.liquidationLtvBps,
     originationFee: applyBps(input.borrowAmount, protocolConfig.originationFeeBps),
     estimatedAprBps: protocolConfig.estimatedAprBps,
+    protocolQuote: createBorrowerProtocolQuoteSummary({
+      collateralDcr: input.collateralDcr,
+      borrowAmount: input.borrowAmount,
+      borrowAsset: input.borrowAsset,
+    }),
     warnings,
   };
 }
