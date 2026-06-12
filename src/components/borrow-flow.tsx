@@ -23,7 +23,7 @@ import {
   calculateLtvBpsFromValues,
 } from "@/lib/quote-math";
 import { formatBps } from "@/lib/risk";
-import type { Loan, MarketSnapshot, Quote } from "@/lib/types";
+import type { Loan, MarketSnapshot, ProtocolQuoteSummary, Quote } from "@/lib/types";
 
 type DemoLoan = Loan & {
   riskLevel: "healthy" | "watch" | "warning" | "liquidation";
@@ -241,6 +241,8 @@ export function BorrowFlow() {
                   </div>
                 </div>
 
+                <ProtocolQuotePanel protocolQuote={preview.protocolQuote} borrowAsset={preview.borrowAsset} />
+
                 <div className="grid gap-2">
                   {preview.warnings.length ? (
                     preview.warnings.slice(0, 2).map((warning) => <InlineWarning key={warning}>{cleanWarning(warning)}</InlineWarning>)
@@ -342,6 +344,56 @@ function LtvMeter({ quote, targetLtvBps, onChange, onSetCollateral }: { quote: Q
         </span>
         Adjust DCR collateral
       </button>
+    </div>
+  );
+}
+
+function ProtocolQuotePanel({ protocolQuote, borrowAsset }: { protocolQuote?: ProtocolQuoteSummary; borrowAsset: Loan["borrowAsset"] }) {
+  if (!protocolQuote) {
+    return (
+      <div className="rounded-2xl border border-[#dbe7e2] bg-[#f7faf9] p-4 text-sm text-[#42524c]">
+        <p className="font-semibold text-[#091440]">Protocol quote</p>
+        <p className="mt-2">Refresh quote to attach supplier funding, platform fee, and next-step protocol guidance.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-[#cde6dc] bg-[#eefbf6] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[#118864]">Protocol quote</p>
+          <p className="mt-1 text-xs text-[#5f716a]">Supplier-backed borrower pricing</p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#118864]">{protocolQuote.fundingStatus}</span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-4">
+        <ProtocolMetric label="APR" value={formatBps(protocolQuote.borrowerAprBps)} />
+        <ProtocolMetric label="Supplier fill" value={`${protocolQuote.supplierFilledAmount} ${borrowAsset}`} />
+        <ProtocolMetric label="DCR fee" value={`${protocolQuote.platformFeeDcr} DCR`} />
+        <ProtocolMetric label="Collateral required" value={`${protocolQuote.collateralRequiredWithFeeDcr} DCR`} />
+      </div>
+      <div className="mt-4 space-y-2">
+        <SummaryRow label="Weighted supplier APR" value={formatBps(protocolQuote.weightedSupplierAprBps)} />
+        <SummaryRow label="Arbiter reserve" value={`${protocolQuote.arbiterReserveDcr} DCR`} />
+        <SummaryRow label="Next build step" value={protocolQuote.nextBuildStep} />
+      </div>
+      <div className="mt-3 grid gap-2">
+        {protocolQuote.notes.slice(0, 2).map((note) => (
+          <div key={note} className="rounded-xl bg-white px-3 py-2 text-xs text-[#42524c]">
+            {note}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProtocolMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-white p-3">
+      <p className="truncate text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-[#091440]">{value}</p>
     </div>
   );
 }
