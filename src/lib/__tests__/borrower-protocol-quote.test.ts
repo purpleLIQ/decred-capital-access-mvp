@@ -16,8 +16,8 @@ describe("borrower protocol quote adapter", () => {
     expect(summary.fundingProgressBps).toBe(10_000);
     expect(summary.supplierFillCount).toBe(1);
     expect(summary.supplierFilledAmount).toBe(350);
-    expect(summary.platformFeeDcr).toBe(0.7);
-    expect(summary.arbiterReserveDcr).toBe(0.3);
+    expect(summary.platformFeeDcr).toBeCloseTo(0.7);
+    expect(summary.arbiterReserveDcr).toBeCloseTo(0.3);
     expect(summary.collateralRequiredWithFeeDcr).toBe(101);
   });
 
