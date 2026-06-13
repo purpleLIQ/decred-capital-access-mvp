@@ -375,8 +375,27 @@ function ProtocolQuotePanel({ protocolQuote, borrowAsset }: { protocolQuote?: Pr
       </div>
       <div className="mt-4 space-y-2">
         <SummaryRow label="Weighted supplier APR" value={formatBps(protocolQuote.weightedSupplierAprBps)} />
+        <SummaryRow label="Funding progress" value={formatBps(protocolQuote.fundingProgressBps)} />
         <SummaryRow label="Arbiter reserve" value={`${protocolQuote.arbiterReserveDcr} DCR`} />
         <SummaryRow label="Next build step" value={protocolQuote.nextBuildStep} />
+      </div>
+      <div className="mt-4 rounded-xl bg-white p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">Supplier fills</p>
+        <div className="mt-3 space-y-2">
+          {protocolQuote.supplierFills.map((fill) => (
+            <div key={fill.fillId} className="rounded-lg bg-[#f7faf9] p-3 text-xs text-[#42524c]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-[#091440]">{fill.supplierId}</span>
+                <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-[#118864]">{fill.status}</span>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <span>{fill.amount} {borrowAsset}</span>
+                <span>{formatBps(fill.aprBps)} APR</span>
+                <span>{formatBps(fill.fundingShareBps)} share</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="mt-3 grid gap-2">
         {protocolQuote.notes.slice(0, 2).map((note) => (

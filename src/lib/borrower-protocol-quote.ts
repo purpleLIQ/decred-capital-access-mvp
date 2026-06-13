@@ -4,6 +4,15 @@ import type { SupplierFill } from "./protocol/supplier-offers";
 import { protocolConfig } from "./protocol-config";
 import type { Loan } from "./types";
 
+export interface BorrowerSupplierFillSummary {
+  fillId: string;
+  supplierId: string;
+  amount: number;
+  aprBps: number;
+  fundingShareBps: number;
+  status: string;
+}
+
 export interface BorrowerProtocolQuoteSummary {
   loanRequestId: string;
   fundingStatus: string;
@@ -16,6 +25,7 @@ export interface BorrowerProtocolQuoteSummary {
   collateralRequiredWithFeeDcr: number;
   supplierFillCount: number;
   supplierFilledAmount: number;
+  supplierFills: BorrowerSupplierFillSummary[];
   nextBuildStep: string;
   notes: string[];
 }
@@ -40,20 +50,33 @@ export function createBorrowerProtocolQuoteSummary(input: {
     fundingDeadline: "2026-06-11T12:00:00.000Z",
     borrowerAcceptedPartialFunding: false,
   };
-  const fill: SupplierFill = {
-    id: "borrower-demo-fill-1",
-    loanRequestId: loanRequest.id,
-    supplierOfferId: "borrower-demo-offer-1",
-    supplierId: "supplier-demo-1",
-    borrowAsset: input.borrowAsset,
-    amount: input.borrowAmount,
-    aprBps: protocolConfig.estimatedAprBps,
-    status: "reserved",
-    reservedAt: "2026-06-10T12:01:00.000Z",
-  };
+  const fills: SupplierFill[] = [
+    {
+      id: "borrower-demo-fill-1",
+      loanRequestId: loanRequest.id,
+      supplierOfferId: "borrower-demo-offer-1",
+      supplierId: "supplier-demo-1",
+      borrowAsset: input.borrowAsset,
+      amount: Number((input.borrowAmount * 0.65).toFixed(8)),
+      aprBps: protocolConfig.estimatedAprBps,
+      status: "reserved",
+      reservedAt: "2026-06-10T12:01:00.000Z",
+    },
+    {
+      id: "borrower-demo-fill-2",
+      loanRequestId: loanRequest.id,
+      supplierOfferId: "borrower-demo-offer-2",
+      supplierId: "supplier-demo-2",
+      borrowAsset: input.borrowAsset,
+      amount: Number((input.borrowAmount * 0.35).toFixed(8)),
+      aprBps: protocolConfig.estimatedAprBps + 75,
+      status: "reserved",
+      reservedAt: "2026-06-10T12:03:00.000Z",
+    },
+  ];
   const quote = createLoanQuote({
     request: loanRequest,
-    fills: [fill],
+    fills,
     interestRateConfig: {
       borrowAsset: input.borrowAsset,
       minimumAprBps: 500,
@@ -76,11 +99,19 @@ export function createBorrowerProtocolQuoteSummary(input: {
     collateralRequiredWithFeeDcr: quote.collateralRequiredWithFee,
     supplierFillCount: quote.supplierAllocations.length,
     supplierFilledAmount: quote.fundingState.filledAmount,
-    nextBuildStep: "Connect supplier offers and partial-fill progress to this borrower quote flow.",
+    supplierFills: quote.supplierAllocations.map((allocation) => ({
+      fillId: allocation.fillId,
+      supplierId: allocation.supplierId,
+      amount: allocation.filledAmount,
+      aprBps: allocation.aprBps,
+      fundingShareBps: allocation.fundingShareBps,
+      status: fills.find((fill) => fill.id === allocation.fillId)?.status ?? "reserved",
+    })),
+    nextBuildStep: "Connect live supplier offers and partial-fill progress to this borrower quote flow.",
     notes: [
       "Protocol quote math is attached to the borrower-facing demo quote.",
-      "Supplier fill data is still deterministic demo data.",
-      "Next product step is supplier fill visibility and supplier offer UX.",
+      "Supplier fill data is deterministic demo data surfaced in the borrower flow.",
+      "Next product step is supplier offer creation and supplier position visibility.",
     ],
   };
 }
