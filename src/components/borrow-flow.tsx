@@ -370,13 +370,21 @@ function ProtocolQuotePanel({ protocolQuote, borrowAsset }: { protocolQuote?: Pr
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <ProtocolMetric label="APR" value={formatBps(protocolQuote.borrowerAprBps)} />
         <ProtocolMetric label="Supplier fill" value={`${protocolQuote.supplierFilledAmount} ${borrowAsset}`} />
-        <ProtocolMetric label="DCR fee" value={`${protocolQuote.platformFeeDcr} DCR`} />
+        <ProtocolMetric label="DCR fee" value={`${protocolQuote.totalPlatformFeeDcr} DCR`} />
         <ProtocolMetric label="Collateral required" value={`${protocolQuote.collateralRequiredWithFeeDcr} DCR`} />
+      </div>
+      <div className="mt-4 rounded-xl bg-white p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">1% DCR platform fee</p>
+        <div className="mt-3 space-y-2">
+          <SummaryRow label="Total fee" value={`${protocolQuote.totalPlatformFeeDcr} DCR`} strong />
+          <SummaryRow label="Platform share" value={`${protocolQuote.platformFeeDcr} DCR`} />
+          <SummaryRow label="Arbiter reserve" value={`${protocolQuote.arbiterReserveDcr} DCR`} />
+          <SummaryRow label="Fee rate" value={formatBps(protocolQuote.platformFeeRateBps)} />
+        </div>
       </div>
       <div className="mt-4 space-y-2">
         <SummaryRow label="Weighted supplier APR" value={formatBps(protocolQuote.weightedSupplierAprBps)} />
         <SummaryRow label="Funding progress" value={formatBps(protocolQuote.fundingProgressBps)} />
-        <SummaryRow label="Arbiter reserve" value={`${protocolQuote.arbiterReserveDcr} DCR`} />
         <SummaryRow label="Next build step" value={protocolQuote.nextBuildStep} />
       </div>
       <div className="mt-4 rounded-xl bg-white p-3">

@@ -102,6 +102,8 @@ export interface ProtocolQuoteSummary {
   activationEligible: boolean;
   weightedSupplierAprBps: number;
   borrowerAprBps: number;
+  platformFeeRateBps: number;
+  totalPlatformFeeDcr: number;
   platformFeeDcr: number;
   arbiterReserveDcr: number;
   collateralRequiredWithFeeDcr: number;

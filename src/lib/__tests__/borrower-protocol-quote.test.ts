@@ -21,6 +21,20 @@ describe("borrower protocol quote adapter", () => {
     expect(summary.collateralRequiredWithFeeDcr).toBe(101);
   });
 
+  it("surfaces the explicit 1% DCR platform fee breakdown", () => {
+    const summary = createBorrowerProtocolQuoteSummary({
+      collateralDcr: 100,
+      borrowAmount: 350,
+      borrowAsset: "USDC",
+    });
+
+    expect(summary.platformFeeRateBps).toBe(100);
+    expect(summary.totalPlatformFeeDcr).toBeCloseTo(1);
+    expect(summary.platformFeeDcr).toBeCloseTo(0.7);
+    expect(summary.arbiterReserveDcr).toBeCloseTo(0.3);
+    expect(summary.notes).toContain("The 1% DCR platform fee is included in required collateral.");
+  });
+
   it("surfaces borrower-visible supplier fill progress", () => {
     const summary = createBorrowerProtocolQuoteSummary({
       collateralDcr: 100,

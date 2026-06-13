@@ -1,5 +1,6 @@
 import { createLoanQuote } from "./protocol/loan-quotes";
 import type { LoanRequest } from "./protocol/loan-requests";
+import { DEFAULT_PLATFORM_FEE_CONFIG } from "./protocol/platform-fees";
 import type { SupplierFill } from "./protocol/supplier-offers";
 import { protocolConfig } from "./protocol-config";
 import type { Loan } from "./types";
@@ -20,6 +21,8 @@ export interface BorrowerProtocolQuoteSummary {
   activationEligible: boolean;
   weightedSupplierAprBps: number;
   borrowerAprBps: number;
+  platformFeeRateBps: number;
+  totalPlatformFeeDcr: number;
   platformFeeDcr: number;
   arbiterReserveDcr: number;
   collateralRequiredWithFeeDcr: number;
@@ -94,6 +97,8 @@ export function createBorrowerProtocolQuoteSummary(input: {
     activationEligible: quote.activationEligible,
     weightedSupplierAprBps: quote.interestRateQuote.weightedSupplierAprBps,
     borrowerAprBps: quote.interestRateQuote.borrowerAprBps,
+    platformFeeRateBps: DEFAULT_PLATFORM_FEE_CONFIG.platformFeeBps,
+    totalPlatformFeeDcr: quote.platformFee.totalFeeAmount,
     platformFeeDcr: quote.platformFee.platformAmount,
     arbiterReserveDcr: quote.platformFee.arbiterReserveAmount,
     collateralRequiredWithFeeDcr: quote.collateralRequiredWithFee,
@@ -110,7 +115,7 @@ export function createBorrowerProtocolQuoteSummary(input: {
     nextBuildStep: "Connect live supplier offers and partial-fill progress to this borrower quote flow.",
     notes: [
       "Protocol quote math is attached to the borrower-facing demo quote.",
-      "Supplier fill data is deterministic demo data surfaced in the borrower flow.",
+      "The 1% DCR platform fee is included in required collateral.",
       "Next product step is supplier offer creation and supplier position visibility.",
     ],
   };
