@@ -71,7 +71,7 @@ export function createBorrowerProtocolQuoteSummary(input: {
     activationEligible: quote.activationEligible,
     weightedSupplierAprBps: quote.interestRateQuote.weightedSupplierAprBps,
     borrowerAprBps: quote.interestRateQuote.borrowerAprBps,
-    platformFeeDcr: quote.platformFee.platformFeeAmount,
+    platformFeeDcr: quote.platformFee.platformAmount,
     arbiterReserveDcr: quote.platformFee.arbiterReserveAmount,
     collateralRequiredWithFeeDcr: quote.collateralRequiredWithFee,
     supplierFillCount: quote.supplierAllocations.length,
