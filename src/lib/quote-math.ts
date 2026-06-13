@@ -1,4 +1,4 @@
-import type { Loan } from "./types";
+import type { Loan, Quote } from "./types";
 
 export function calculateCollateralUsd(collateralDcr: number, dcrUsd: number): number {
   return Number((collateralDcr * dcrUsd).toFixed(2));
@@ -25,7 +25,7 @@ export function buildPreviewQuote(input: {
   borrowAmount: number;
   borrowAsset: Loan["borrowAsset"];
   dcrUsd: number;
-}) {
+}): Quote {
   const collateralUsd = calculateCollateralUsd(input.collateralDcr, input.dcrUsd);
   const ltvBps = calculateLtvBpsFromValues(input.borrowAmount, input.collateralDcr, input.dcrUsd);
   const warnings: string[] = [];
@@ -44,6 +44,7 @@ export function buildPreviewQuote(input: {
     liquidationThresholdBps: 7000,
     originationFee: Number((input.borrowAmount * 0.01).toFixed(2)),
     estimatedAprBps: 1450,
+    protocolQuote: undefined,
     warnings,
   };
 }
