@@ -12,5 +12,7 @@ describe("SupplierOffersDemo", () => {
     expect(markup).toContain("Supplier offers");
     expect(markup).toContain("Create demo offer");
     expect(markup).toContain("Edit +100 / +25bps");
+    expect(markup).toContain("1,800 USDC");
+    expect(markup).toContain("Matching active USDC capacity for a 30-day request.");
   });
 });

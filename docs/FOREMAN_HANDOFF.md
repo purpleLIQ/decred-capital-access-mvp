@@ -1,0 +1,102 @@
+# Foreman Handoff
+
+Date: 2026-06-15
+Branch: `connect-supplier-offers-to-borrower-fills`
+PR: #83, `Connect supplier offers to borrower quote fills`
+
+## Current Position
+
+PR #83 connects the borrower quote flow to shared demo supplier offers. This is the right next product step after PR #82 because it starts tying the borrower and supplier surfaces together instead of keeping the supplier page as an isolated demo.
+
+This branch should still be treated as demo-only:
+
+- no real funds,
+- no app-side signing,
+- no wallet unlock,
+- no private-key handling,
+- no app-side broadcast,
+- no mainnet path,
+- no production liquidation execution.
+
+## Completed In This Pass
+
+- Added `vitest.config.mts` so Vitest resolves the same `@` alias that Next/TypeScript use.
+- Fixed the PR #83 CI failure where `@/lib/supplier-demo-data` could not resolve from the supplier offer component test.
+- Kept supplier offer demo state seeded from the shared supplier data helper.
+- Changed the supplier page active-capacity metric so it reports matching capacity for the selected asset instead of summing BTC, USDC, and USDT as if all were USDC.
+- Made borrower protocol quotes handle no matching supplier offers gracefully.
+- Added tests for:
+  - shared supplier offer allocation,
+  - active/paused/canceled/mismatched offer filtering,
+  - over-duration offer exclusion,
+  - no matching active capacity,
+  - borrower quote partial funding,
+  - borrower quote no-liquidity/unfunded state,
+  - supplier offer page selected-asset capacity display.
+
+## Verification
+
+Passed locally:
+
+```bash
+npm test
+npm run safety:check
+npm run verify:protocol
+npm run simnet:fixture-proof
+npm run lint
+npm run build
+```
+
+Notes:
+
+- `npm run lint` exits successfully but reports two existing warnings in `src/components/ops-dashboard.tsx` for unused imports.
+- `npm run verify` is still blocked by a pre-existing `npm audit` finding in the Vite/esbuild dependency chain.
+- `npm audit fix` upgrades the test tooling path to Vite 8/Rolldown. That works only cleanly with Node 20.19+ and was too broad/risky to mix into this borrower/supplier PR from a local Node 20.17 workspace.
+
+## Foreman Instructions
+
+Before assigning more work, confirm PR #83 CI is green after this branch is pushed. If CI fails:
+
+- inspect whether GitHub Actions is using Node 20.19.0 as configured in `.github/workflows/verify.yml`,
+- inspect `npm test` output first,
+- do not start the next product PR until PR #83 is merged or consciously replaced.
+
+Next developer prompt after PR #83 merge:
+
+```text
+Create supplier positions from accepted borrower quote fills.
+
+Use the existing protocol helpers for supplier fills and positions. Add a borrower/supplier demo adapter that converts the accepted fills from the protocol quote into supplier position previews. Show the positions in the supplier area or ops view with supplier id, asset, principal, APR, interest due, repayment address placeholder, and status.
+
+Keep this demo-only. Do not add real wallet custody, signing, broadcast, mainnet, or liquidation execution.
+
+Tests:
+- full funding creates one position per fill,
+- each supplier earns only on its filled amount,
+- partial funding does not activate positions unless explicitly accepted later,
+- zero fills create no positions and show a clear waiting-for-liquidity state.
+
+Run:
+- npm test
+- npm run verify:protocol
+- npm run lint
+- npm run build
+```
+
+Recommended follow-up after supplier positions:
+
+```text
+Add repayment allocation preview across supplier positions.
+
+Use pro-rata allocation for v0. Show principal, interest, total due, repayment received, remaining due, and supplier share. Keep this as deterministic demo math first, then wire it to persistent demo state later.
+```
+
+## Open Product Threads
+
+- Supplier offers/fills/positions are still demo data, not persistent account-backed liquidity.
+- Borrower quote now sees shared offers, but create-loan still needs lifecycle integration with accepted fills.
+- Repayment allocation is the next major borrower/supplier integration step.
+- Watcher-backed collateral, fee-output, disbursement, repayment, and release status should wait until the product lifecycle is coherent.
+- Evidence commitments currently use SHA-256 in code while docs mention Decred-oriented blake256/Merkle options. Schedule this as a deliberate protocol decision later.
+- Ticket collateral remains research-only; existing staking tickets should not increase v1 borrow capacity.
+- Cake Wallet remains a useful Decred mobile wallet integration reference, not a lending backend.

@@ -89,6 +89,7 @@ export interface MarketSnapshot {
 export interface ProtocolSupplierFillSummary {
   fillId: string;
   supplierId: string;
+  supplierOfferId: string;
   amount: number;
   aprBps: number;
   fundingShareBps: number;
@@ -109,6 +110,8 @@ export interface ProtocolQuoteSummary {
   collateralRequiredWithFeeDcr: number;
   supplierFillCount: number;
   supplierFilledAmount: number;
+  supplierRemainingAmount: number;
+  activeSupplierCapacity: number;
   supplierFills: ProtocolSupplierFillSummary[];
   nextBuildStep: string;
   notes: string[];

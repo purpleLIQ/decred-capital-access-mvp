@@ -3,55 +3,33 @@
 import { ArrowLeft, Pause, Pencil, Play, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-
-type OfferStatus = "active" | "paused" | "canceled";
-
-type SupplierOffer = {
-  id: string;
-  supplierId: string;
-  borrowAsset: "USDC" | "USDT" | "BTC";
-  availableAmount: number;
-  aprBps: number;
-  status: OfferStatus;
-};
-
-const initialOffers: SupplierOffer[] = [
-  {
-    id: "supplier-offer-1",
-    supplierId: "supplier-demo-1",
-    borrowAsset: "USDC",
-    availableAmount: 1_200,
-    aprBps: 1450,
-    status: "active",
-  },
-  {
-    id: "supplier-offer-2",
-    supplierId: "supplier-demo-2",
-    borrowAsset: "USDC",
-    availableAmount: 800,
-    aprBps: 1525,
-    status: "paused",
-  },
-];
+import {
+  getActiveSupplierCapacity,
+  getDemoSupplierOffers,
+  type DemoSupplierOffer,
+  type DemoSupplierOfferStatus,
+} from "@/lib/supplier-demo-data";
 
 export function SupplierOffersDemo() {
-  const [offers, setOffers] = useState(initialOffers);
+  const [offers, setOffers] = useState<DemoSupplierOffer[]>(() => getDemoSupplierOffers());
   const [amount, setAmount] = useState(500);
   const [aprBps, setAprBps] = useState(1500);
-  const [asset, setAsset] = useState<SupplierOffer["borrowAsset"]>("USDC");
+  const [asset, setAsset] = useState<DemoSupplierOffer["borrowAsset"]>("USDC");
 
   const activeCapacity = useMemo(
-    () => offers.filter((offer) => offer.status === "active").reduce((total, offer) => total + offer.availableAmount, 0),
-    [offers],
+    () => getActiveSupplierCapacity({ borrowAsset: asset, durationDays: 30, offers }),
+    [asset, offers],
   );
 
   function addOffer() {
-    const nextOffer: SupplierOffer = {
+    const nextOffer: DemoSupplierOffer = {
       id: `supplier-offer-${offers.length + 1}`,
       supplierId: `supplier-demo-${offers.length + 1}`,
       borrowAsset: asset,
       availableAmount: Math.max(amount, 0),
       aprBps: Math.max(aprBps, 0),
+      minFillAmount: asset === "BTC" ? 0.005 : 100,
+      maxDurationDays: 30,
       status: "active",
     };
 
@@ -64,7 +42,7 @@ export function SupplierOffersDemo() {
         offer.id === id
           ? {
               ...offer,
-              availableAmount: Number((offer.availableAmount + 100).toFixed(2)),
+              availableAmount: Number((offer.availableAmount + (offer.borrowAsset === "BTC" ? 0.005 : 100)).toFixed(8)),
               aprBps: offer.aprBps + 25,
             }
           : offer,
@@ -101,7 +79,8 @@ export function SupplierOffersDemo() {
           </div>
           <div className="rounded-lg border border-[#d8dfda] bg-white px-4 py-3 text-sm">
             <p className="font-semibold text-[#155e59]">Active capacity</p>
-            <p className="mt-1 text-2xl font-semibold">${activeCapacity.toLocaleString()}</p>
+            <p className="mt-1 text-2xl font-semibold">{formatOfferAmount(activeCapacity, asset)}</p>
+            <p className="mt-1 text-xs text-[#6b7b74]">Matching active {asset} capacity for a 30-day request.</p>
           </div>
         </header>
 
@@ -115,7 +94,7 @@ export function SupplierOffersDemo() {
                 <select
                   className="mt-1 h-11 w-full rounded-md border border-[#cddbd5] bg-white px-3"
                   value={asset}
-                  onChange={(event) => setAsset(event.target.value as SupplierOffer["borrowAsset"])}
+                  onChange={(event) => setAsset(event.target.value as DemoSupplierOffer["borrowAsset"])}
                 >
                   <option>USDC</option>
                   <option>USDT</option>
@@ -156,7 +135,7 @@ export function SupplierOffersDemo() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Supplier offers</h2>
-                <p className="mt-1 text-sm text-[#577067]">Local demo state for the supplier offer lifecycle.</p>
+                <p className="mt-1 text-sm text-[#577067]">Local demo lifecycle controls backed by shared seeded offers.</p>
               </div>
               <span className="rounded-full bg-[#e3f4ef] px-3 py-1 text-sm font-semibold text-[#155e59]">{offers.length} offers</span>
             </div>
@@ -171,10 +150,11 @@ export function SupplierOffersDemo() {
                       </div>
                       <p className="mt-1 text-sm text-[#577067]">{offer.id}</p>
                     </div>
-                    <div className="grid gap-2 text-sm sm:grid-cols-3 md:min-w-[20rem]">
+                    <div className="grid gap-2 text-sm sm:grid-cols-4 md:min-w-[24rem]">
                       <Stat label="Asset" value={offer.borrowAsset} />
-                      <Stat label="Available" value={`${offer.availableAmount} ${offer.borrowAsset}`} />
+                      <Stat label="Available" value={formatOfferAmount(offer.availableAmount, offer.borrowAsset)} />
                       <Stat label="APR" value={`${(offer.aprBps / 100).toFixed(2)}%`} />
+                      <Stat label="Max term" value={`${offer.maxDurationDays} days`} />
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -217,7 +197,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusBadge({ status }: { status: OfferStatus }) {
+function StatusBadge({ status }: { status: DemoSupplierOfferStatus }) {
   const className =
     status === "active"
       ? "bg-[#e3f4ef] text-[#155e59]"
@@ -226,4 +206,9 @@ function StatusBadge({ status }: { status: OfferStatus }) {
         : "bg-[#ffe8e5] text-[#8b2f22]";
 
   return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${className}`}>{status}</span>;
+}
+
+function formatOfferAmount(amount: number, asset: DemoSupplierOffer["borrowAsset"]): string {
+  const maximumFractionDigits = asset === "BTC" ? 8 : 2;
+  return `${amount.toLocaleString("en-US", { maximumFractionDigits })} ${asset}`;
 }
