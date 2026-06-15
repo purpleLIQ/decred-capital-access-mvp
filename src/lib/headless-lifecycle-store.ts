@@ -98,24 +98,30 @@ function applyStatusSectionPatch(
   patch: Partial<LifecycleStatusSection<string>>,
   updatedAt: string,
 ): HeadlessLoanLifecycleRecord {
-  const sectionPatch = { ...patch, updatedAt };
-
   switch (section) {
     case "collateralLock":
-      return touchRecord({ ...record, collateralLock: { ...record.collateralLock, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, collateralLock: mergeSection(record.collateralLock, patch, updatedAt) }, updatedAt);
     case "dcrPlatformFeeOutput":
-      return touchRecord({ ...record, dcrPlatformFeeOutput: { ...record.dcrPlatformFeeOutput, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, dcrPlatformFeeOutput: mergeSection(record.dcrPlatformFeeOutput, patch, updatedAt) }, updatedAt);
     case "supplierDisbursement":
-      return touchRecord({ ...record, supplierDisbursement: { ...record.supplierDisbursement, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, supplierDisbursement: mergeSection(record.supplierDisbursement, patch, updatedAt) }, updatedAt);
     case "repaymentDetection":
-      return touchRecord({ ...record, repaymentDetection: { ...record.repaymentDetection, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, repaymentDetection: mergeSection(record.repaymentDetection, patch, updatedAt) }, updatedAt);
     case "collateralRelease":
-      return touchRecord({ ...record, collateralRelease: { ...record.collateralRelease, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, collateralRelease: mergeSection(record.collateralRelease, patch, updatedAt) }, updatedAt);
     case "liquidationHealth":
-      return touchRecord({ ...record, liquidationHealth: { ...record.liquidationHealth, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, liquidationHealth: mergeSection(record.liquidationHealth, patch, updatedAt) }, updatedAt);
     case "arbiterReview":
-      return touchRecord({ ...record, arbiterReview: { ...record.arbiterReview, ...sectionPatch } }, updatedAt);
+      return touchRecord({ ...record, arbiterReview: mergeSection(record.arbiterReview, patch, updatedAt) }, updatedAt);
   }
+}
+
+function mergeSection<TSection extends LifecycleStatusSection<string>>(
+  section: TSection,
+  patch: Partial<LifecycleStatusSection<string>>,
+  updatedAt: string,
+): TSection {
+  return { ...section, ...patch, updatedAt } as TSection;
 }
 
 function touchRecord(record: HeadlessLoanLifecycleRecord, updatedAt: string): HeadlessLoanLifecycleRecord {
