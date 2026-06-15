@@ -23,6 +23,11 @@ import {
   calculateLtvBpsFromValues,
 } from "@/lib/quote-math";
 import { formatBps } from "@/lib/risk";
+import {
+  createHeadlessLoanLifecycleRecord,
+  findHeadlessLoanLifecycleByLookupCode,
+  type HeadlessLoanLifecycleRecord,
+} from "@/lib/headless-loan-lifecycle";
 import type { Loan, MarketSnapshot, ProtocolQuoteSummary, Quote } from "@/lib/types";
 
 type DemoLoan = Loan & {
@@ -51,6 +56,12 @@ export function BorrowFlow() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [borrowerContact, setBorrowerContact] = useState("");
+  const [acceptedLifecycle, setAcceptedLifecycle] = useState<HeadlessLoanLifecycleRecord | null>(null);
+  const [lifecycleRecords, setLifecycleRecords] = useState<HeadlessLoanLifecycleRecord[]>([]);
+  const [lookupCode, setLookupCode] = useState("");
+  const [lookupResult, setLookupResult] = useState<HeadlessLoanLifecycleRecord | null>(null);
+  const [lookupSearched, setLookupSearched] = useState(false);
 
   const dcrUsd = payload?.market.dcrUsd ?? initialDcrUsd;
 
@@ -67,6 +78,7 @@ export function BorrowFlow() {
 
   function clearLiveQuote() {
     setQuote(null);
+    setAcceptedLifecycle(null);
     setNotice(null);
   }
 
@@ -122,24 +134,54 @@ export function BorrowFlow() {
     }
   }
 
-  async function createLoan() {
-    setBusy("loan");
-    setNotice(null);
-    try {
-      const response = await fetch("/api/loans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collateralDcr, borrowAmount, borrowAsset }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      setNotice(`${result.loan.ref} created. Open Console for the collateral flow.`);
-      await refresh();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Loan creation failed.");
-    } finally {
-      setBusy(null);
+  function acceptQuote() {
+    if (!preview.protocolQuote) {
+      setNotice("Refresh quote before accepting so supplier fills are attached.");
+      return;
     }
+
+    setBusy("accept");
+    setNotice(null);
+    const lifecycle = buildLifecycleRecord(borrowerContact);
+    setAcceptedLifecycle(lifecycle);
+    setLifecycleRecords((records) => upsertLifecycle(records, lifecycle));
+    setLookupCode(lifecycle.lookupCode);
+    setLookupResult(lifecycle);
+    setLookupSearched(true);
+    setNotice(`${lifecycle.publicLoanReference} accepted. Save this lookup code; no account is required.`);
+    setBusy(null);
+  }
+
+  function saveOptionalContact() {
+    if (!acceptedLifecycle) return;
+    const lifecycle = buildLifecycleRecord(borrowerContact, acceptedLifecycle.publicLoanReference, acceptedLifecycle.loanId);
+    setAcceptedLifecycle(lifecycle);
+    setLifecycleRecords((records) => upsertLifecycle(records, lifecycle));
+    setLookupResult(lifecycle);
+    setNotice(borrowerContact.trim() ? "Optional contact saved for demo recovery/update state." : "Continuing without contact info. Lookup code remains the recovery path.");
+  }
+
+  function searchLoanReference() {
+    const record = findHeadlessLoanLifecycleByLookupCode(lookupCode, lifecycleRecords);
+    setLookupResult(record);
+    setLookupSearched(true);
+  }
+
+  function buildLifecycleRecord(contactValue: string, publicLoanReference?: string, loanId?: string): HeadlessLoanLifecycleRecord {
+    return createHeadlessLoanLifecycleRecord({
+      loanId,
+      publicLoanReference,
+      collateralDcr,
+      borrowAmount,
+      borrowAsset,
+      borrowerAcceptedQuote: true,
+      borrowerAcceptedPartialFunding: false,
+      borrowerContact: contactValue.trim()
+        ? { preference: "email", value: contactValue.trim(), consentForUpdates: true }
+        : undefined,
+      repaymentAmount: estimatedPayoff,
+      requestedAmountUsd: borrowAsset === "BTC" ? undefined : borrowAmount,
+    });
   }
 
   const preview = quote ?? buildPreviewQuote({ collateralDcr, borrowAmount, borrowAsset, dcrUsd });
@@ -171,6 +213,7 @@ export function BorrowFlow() {
           </div>
           <nav className="hidden items-center gap-2 text-sm text-white/70 md:flex">
             <a className="rounded-full px-3 py-2 hover:bg-white/10 hover:text-white" href="#borrow">Borrow</a>
+            <a className="rounded-full px-3 py-2 hover:bg-white/10 hover:text-white" href="#lookup">Lookup</a>
             <a className="rounded-full px-3 py-2 hover:bg-white/10 hover:text-white" href="#market">Market</a>
             <Link className="rounded-full px-3 py-2 hover:bg-white/10 hover:text-white" href="/ops">Ops</Link>
             <Link className="rounded-full bg-white px-4 py-2 font-semibold text-[#091440]" href="/console">Console</Link>
@@ -190,7 +233,7 @@ export function BorrowFlow() {
               Borrow USDC. Keep your DCR.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-8 text-white/68">
-              Pick a target LTV, adjust either field, and review the loan math before escrow steps begin.
+              Accept a quote, optionally leave contact info, then return with a public lookup code. No borrower account required.
             </p>
 
             <div className="mt-7 rounded-2xl border border-[#70cbff]/15 bg-[#091440]/65 p-4 font-mono text-xs text-[#9bdfff] shadow-xl shadow-black/20" id="market">
@@ -201,7 +244,7 @@ export function BorrowFlow() {
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <TerminalStat label="DCR/USD" value={payload ? currency(payload.market.dcrUsd) : "..."} detail={`${payload?.market.sourceCount ?? 0} feeds`} ok={marketReady} />
                 <TerminalStat label="loans" value={`${payload?.loans.length ?? "..."}`} detail={`${activeLoans} active`} ok />
-                <TerminalStat label="escrow" value="2-of-3" detail="preview" ok />
+                <TerminalStat label="borrowers" value="headless" detail="lookup code" ok />
               </div>
             </div>
             <ProtocolScenarioPanel scenario={payload?.protocolScenario} />
@@ -214,7 +257,7 @@ export function BorrowFlow() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#2970ff]">{quoteMode}</p>
                   <h2 className="truncate text-2xl font-semibold tracking-[-0.04em]">DCR collateral loan</h2>
                 </div>
-                <div className="ml-3 shrink-0 rounded-full bg-[#e7f8f3] px-3 py-1 text-sm font-semibold text-[#118864]">Demo</div>
+                <div className="ml-3 shrink-0 rounded-full bg-[#e7f8f3] px-3 py-1 text-sm font-semibold text-[#118864]">Headless</div>
               </div>
 
               <div className="space-y-4 p-4 sm:p-5">
@@ -242,6 +285,22 @@ export function BorrowFlow() {
                 </div>
 
                 <ProtocolQuotePanel protocolQuote={preview.protocolQuote} borrowAsset={preview.borrowAsset} />
+                <BorrowerAcceptPanel
+                  busy={busy}
+                  borrowerContact={borrowerContact}
+                  lifecycle={acceptedLifecycle}
+                  onAcceptQuote={acceptQuote}
+                  onContactChange={setBorrowerContact}
+                  onSaveContact={saveOptionalContact}
+                  protocolQuote={preview.protocolQuote}
+                />
+                <LoanLookupPanel
+                  lookupCode={lookupCode}
+                  onLookup={searchLoanReference}
+                  onLookupCodeChange={setLookupCode}
+                  result={lookupResult}
+                  searched={lookupSearched}
+                />
 
                 <div className="grid gap-2">
                   {preview.warnings.length ? (
@@ -260,8 +319,8 @@ export function BorrowFlow() {
                     <Gauge className="h-4 w-4" />
                     {busy === "quote" ? "Pricing" : "Refresh quote"}
                   </button>
-                  <button className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#2970ff] px-4 text-sm font-semibold text-white shadow-lg shadow-[#2970ff]/25 hover:bg-[#1d5fe8] disabled:opacity-60" disabled={busy === "loan"} onClick={createLoan}>
-                    {busy === "loan" ? "Creating" : "Create loan"}
+                  <button className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#2970ff] px-4 text-sm font-semibold text-white shadow-lg shadow-[#2970ff]/25 hover:bg-[#1d5fe8] disabled:opacity-60" disabled={busy === "accept" || !preview.protocolQuote} onClick={acceptQuote}>
+                    {busy === "accept" ? "Accepting" : "Accept quote"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -269,14 +328,147 @@ export function BorrowFlow() {
             </div>
 
             <div className="grid gap-3 p-3 sm:grid-cols-3">
-              <TrustItem icon={LockKeyhole} label="Escrow" text="2-of-3" />
-              <TrustItem icon={BarChart3} label="Oracle" text="blended" />
-              <TrustItem icon={CircuitBoard} label="Simnet" text="next" />
+              <TrustItem icon={LockKeyhole} label="Borrower" text="no login" />
+              <TrustItem icon={BarChart3} label="Lookup" text="public ref" />
+              <TrustItem icon={CircuitBoard} label="Execution" text="disabled" />
             </div>
           </section>
         </section>
       </div>
     </main>
+  );
+}
+
+function BorrowerAcceptPanel({
+  busy,
+  borrowerContact,
+  lifecycle,
+  onAcceptQuote,
+  onContactChange,
+  onSaveContact,
+  protocolQuote,
+}: {
+  busy: string | null;
+  borrowerContact: string;
+  lifecycle: HeadlessLoanLifecycleRecord | null;
+  onAcceptQuote: () => void;
+  onContactChange: (value: string) => void;
+  onSaveContact: () => void;
+  protocolQuote?: ProtocolQuoteSummary;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#dbe7e2] bg-[#f7faf9] p-4" id="lookup">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[#091440]">Accept quote without an account</p>
+          <p className="mt-1 text-xs text-[#5f716a]">Borrower contact is optional and only used for updates or recovery. It is not signup.</p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#2970ff]">headless</span>
+      </div>
+      {!lifecycle ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <p className="text-sm text-[#42524c]">Accepting creates a public loan reference for lookup and status. Refresh quote first so supplier fills are attached.</p>
+          <button className="inline-flex h-10 items-center justify-center rounded-xl bg-[#091440] px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={busy === "accept" || !protocolQuote} onClick={onAcceptQuote}>
+            Accept quote
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <div className="rounded-xl bg-white p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">Public loan reference</p>
+            <p className="mt-1 break-all font-mono text-lg font-semibold text-[#091440]">{lifecycle.publicLoanReference}</p>
+            <p className="mt-1 text-xs text-[#5f716a]">Save this code to return to loan status without logging in.</p>
+          </div>
+          <label className="block rounded-xl bg-white p-3 text-sm">
+            <span className="font-semibold text-[#42524c]">Optional email/contact</span>
+            <input
+              className="mt-2 h-10 w-full rounded-lg border border-[#cddbd5] px-3 outline-none focus:border-[#2970ff]"
+              onChange={(event) => onContactChange(event.target.value)}
+              placeholder="borrower@example.com"
+              type="email"
+              value={borrowerContact}
+            />
+          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button className="h-10 rounded-xl border border-[#cddbd5] bg-white px-3 text-sm font-semibold text-[#091440]" onClick={onSaveContact}>
+              Continue without contact
+            </button>
+            <button className="h-10 rounded-xl bg-[#2970ff] px-3 text-sm font-semibold text-white" onClick={onSaveContact}>
+              Save optional contact
+            </button>
+          </div>
+          <div className="grid gap-2 text-xs text-[#42524c] sm:grid-cols-2">
+            <span>Next borrower action: {lifecycle.nextBorrowerAction}</span>
+            <span>Funding route: {lifecycle.fundingRoute.status}</span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LoanLookupPanel({
+  lookupCode,
+  onLookup,
+  onLookupCodeChange,
+  result,
+  searched,
+}: {
+  lookupCode: string;
+  onLookup: () => void;
+  onLookupCodeChange: (value: string) => void;
+  result: HeadlessLoanLifecycleRecord | null;
+  searched: boolean;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#dbe7e2] bg-white p-4">
+      <p className="text-sm font-semibold text-[#091440]">Loan lookup</p>
+      <p className="mt-1 text-xs text-[#5f716a]">Enter the public loan reference. No login required.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+        <input
+          className="h-11 rounded-xl border border-[#cddbd5] px-3 font-mono text-sm uppercase outline-none focus:border-[#2970ff]"
+          onChange={(event) => onLookupCodeChange(event.target.value)}
+          placeholder="DCL-..."
+          value={lookupCode}
+        />
+        <button className="h-11 rounded-xl bg-[#091440] px-4 text-sm font-semibold text-white" onClick={onLookup}>
+          Lookup status
+        </button>
+      </div>
+      {result ? <LoanLookupResult record={result} /> : searched ? <div className="mt-3 rounded-xl bg-[#fff4d8] p-3 text-sm text-[#6f4d00]">Loan reference not found in this demo session.</div> : null}
+    </section>
+  );
+}
+
+function LoanLookupResult({ record }: { record: HeadlessLoanLifecycleRecord }) {
+  return (
+    <div className="mt-4 space-y-3 rounded-xl bg-[#f7faf9] p-3 text-sm text-[#42524c]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-mono font-semibold text-[#091440]">{record.publicLoanReference}</p>
+          <p className="text-xs text-[#5f716a]">{record.lifecycleStatus}</p>
+        </div>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#118864]">{record.fundingStatus}</span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <ProtocolMetric label="Positions" value={`${record.supplierPositions.length}`} />
+        <ProtocolMetric label="Repayment due" value={formatAssetAmount(record.repaymentAllocationPreview.totalDue, record.borrowAsset)} />
+        <ProtocolMetric label="Remaining" value={formatAssetAmount(record.repaymentAllocationPreview.remainingDue, record.borrowAsset)} />
+      </div>
+      <div className="space-y-2">
+        <SummaryRow label="Next borrower action" value={record.nextBorrowerAction} />
+        <SummaryRow label="Supplier/operator action" value={record.nextSupplierOperatorAction} />
+        <SummaryRow label="Collateral lock" value={record.collateralLock.status} />
+        <SummaryRow label="Fee output" value={record.dcrPlatformFeeOutput.status} />
+        <SummaryRow label="Disbursement" value={record.supplierDisbursement.status} />
+        <SummaryRow label="Repayment detection" value={record.repaymentDetection.status} />
+        <SummaryRow label="Collateral release" value={record.collateralRelease.status} />
+        <SummaryRow label="Liquidation health" value={record.liquidationHealth.status} />
+        <SummaryRow label="Arbiter review" value={record.arbiterReview.status} />
+        <SummaryRow label="Evidence" value={record.evidenceBundle.status} />
+        <SummaryRow label="Funding route" value={record.fundingRoute.status} />
+      </div>
+    </div>
   );
 }
 
@@ -441,6 +633,10 @@ function ProtocolMetric({ label, value }: { label: string; value: string }) {
       <p className="mt-1 truncate text-sm font-semibold text-[#091440]">{value}</p>
     </div>
   );
+}
+
+function upsertLifecycle(records: HeadlessLoanLifecycleRecord[], record: HeadlessLoanLifecycleRecord): HeadlessLoanLifecycleRecord[] {
+  return [record, ...records.filter((existing) => existing.lookupCode !== record.lookupCode)];
 }
 
 function TerminalStat({ label, value, detail, ok }: { label: string; value: string; detail: string; ok: boolean }) {
