@@ -46,7 +46,9 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
   const totalDue = roundAssetAmount(positions.reduce((sum, position) => sum + position.totalDue, 0));
   const totalPrincipalDue = roundAssetAmount(positions.reduce((sum, position) => sum + position.principal, 0));
   const totalInterestDue = roundAssetAmount(positions.reduce((sum, position) => sum + position.interestDue, 0));
-  const allocatedPool = roundAssetAmount(Math.min(repaymentAmount, totalDue));
+  const totalExistingReceived = roundAssetAmount(positions.reduce((sum, position) => sum + position.repaymentReceived, 0));
+  const outstandingDue = roundAssetAmount(Math.max(totalDue - totalExistingReceived, 0));
+  const allocatedPool = roundAssetAmount(Math.min(repaymentAmount, outstandingDue));
   let allocatedSoFar = 0;
 
   if (positions.length === 0 || totalDue <= 0) {
@@ -72,11 +74,13 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
 
   const allocations = positions.map((position, index): SupplierRepaymentAllocationRow => {
     const isLast = index === positions.length - 1;
+    const outstandingPositionDue = Math.max(position.totalDue - position.repaymentReceived, 0);
     const proRataAmount = isLast
       ? roundAssetAmount(allocatedPool - allocatedSoFar)
       : roundAssetAmount(allocatedPool * (position.totalDue / totalDue));
-    allocatedSoFar = roundAssetAmount(allocatedSoFar + proRataAmount);
-    const repaymentReceived = roundAssetAmount(position.repaymentReceived + proRataAmount);
+    const repaymentAllocated = roundAssetAmount(Math.min(proRataAmount, outstandingPositionDue));
+    allocatedSoFar = roundAssetAmount(allocatedSoFar + repaymentAllocated);
+    const repaymentReceived = roundAssetAmount(position.repaymentReceived + repaymentAllocated);
     const remainingDue = roundAssetAmount(Math.max(position.totalDue - repaymentReceived, 0));
 
     return {
@@ -91,14 +95,15 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
       interestDue: position.interestDue,
       totalDue: position.totalDue,
       supplierShareBps: (position.totalDue / totalDue) * 10_000,
-      repaymentAllocated: proRataAmount,
+      repaymentAllocated,
       repaymentReceived,
       remainingDue,
       status: resolveRowStatus(repaymentReceived, position.totalDue),
     };
   });
   const totalAllocated = roundAssetAmount(allocations.reduce((sum, allocation) => sum + allocation.repaymentAllocated, 0));
-  const remainingDue = roundAssetAmount(Math.max(totalDue - totalAllocated, 0));
+  const totalReceived = roundAssetAmount(allocations.reduce((sum, allocation) => sum + allocation.repaymentReceived, 0));
+  const remainingDue = roundAssetAmount(allocations.reduce((sum, allocation) => sum + allocation.remainingDue, 0));
 
   return {
     loanId: positions[0].loanId,
@@ -111,7 +116,7 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
     totalAllocated,
     unallocatedAmount: roundAssetAmount(Math.max(repaymentAmount - totalAllocated, 0)),
     remainingDue,
-    status: resolvePreviewStatus(totalAllocated, totalDue),
+    status: resolvePreviewStatus(totalReceived, totalDue),
     allocations,
     notes: [
       "Repayment is allocated pro-rata across supplier position total due.",
@@ -121,10 +126,10 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
   };
 }
 
-function resolvePreviewStatus(totalAllocated: number, totalDue: number): SupplierRepaymentAllocationStatus {
+function resolvePreviewStatus(totalReceived: number, totalDue: number): SupplierRepaymentAllocationStatus {
   if (totalDue <= 0) return "waiting_for_positions";
-  if (totalAllocated <= 0) return "unpaid";
-  if (totalAllocated >= totalDue) return "repaid";
+  if (totalReceived <= 0) return "unpaid";
+  if (totalReceived >= totalDue) return "repaid";
   return "partially_repaid";
 }
 
