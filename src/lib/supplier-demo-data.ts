@@ -85,7 +85,7 @@ const demoSupplierOffers: DemoSupplierOffer[] = [
     aprBps: 1500,
     minFillAmount: 100,
     maxDurationDays: 30,
-    status: "canceled",
+    status: "active",
   },
 ];
 
