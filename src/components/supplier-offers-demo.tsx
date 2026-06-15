@@ -4,6 +4,7 @@ import { ArrowLeft, Pause, Pencil, Play, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createBorrowerProtocolQuoteSummary } from "@/lib/borrower-protocol-quote";
+import { allocateRepaymentAcrossSupplierPositions, type SupplierRepaymentAllocationPreview } from "@/lib/supplier-repayment-allocation";
 import {
   createSupplierPositionPreviewsFromAcceptedQuote,
   type SupplierPositionPreview,
@@ -21,6 +22,8 @@ const acceptedQuotePreview = {
   borrowAsset: "USDC" as const,
   durationDays: 30,
 };
+
+const demoRepaymentAmount = 760;
 
 export function SupplierOffersDemo() {
   const [offers, setOffers] = useState<DemoSupplierOffer[]>(() => getDemoSupplierOffers());
@@ -44,6 +47,10 @@ export function SupplierOffersDemo() {
       borrowerAcceptedPartialFunding: false,
     });
   }, [offers]);
+  const repaymentPreview = useMemo(
+    () => allocateRepaymentAcrossSupplierPositions({ positions: positionPreview.positions, repaymentAmount: demoRepaymentAmount }),
+    [positionPreview.positions],
+  );
 
   function addOffer() {
     const nextOffer: DemoSupplierOffer = {
@@ -98,7 +105,7 @@ export function SupplierOffersDemo() {
             <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#577067]">Supplier desk</p>
             <h1 className="mt-1 text-3xl font-semibold">Offer demo</h1>
             <p className="mt-2 max-w-2xl text-sm text-[#577067]">
-              Supplier liquidity now feeds borrower quote fills, then accepted fills become supplier position previews.
+              Supplier liquidity now feeds borrower quote fills, accepted fills become positions, and repayments allocate across those positions.
             </p>
           </div>
           <div className="rounded-lg border border-[#d8dfda] bg-white px-4 py-3 text-sm">
@@ -208,13 +215,19 @@ export function SupplierOffersDemo() {
           </div>
         </section>
 
-        <SupplierPositionPreviewPanel preview={positionPreview} />
+        <SupplierPositionPreviewPanel preview={positionPreview} repaymentPreview={repaymentPreview} />
       </div>
     </main>
   );
 }
 
-function SupplierPositionPreviewPanel({ preview }: { preview: ReturnType<typeof createSupplierPositionPreviewsFromAcceptedQuote> }) {
+function SupplierPositionPreviewPanel({
+  preview,
+  repaymentPreview,
+}: {
+  preview: ReturnType<typeof createSupplierPositionPreviewsFromAcceptedQuote>;
+  repaymentPreview: SupplierRepaymentAllocationPreview;
+}) {
   return (
     <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -222,7 +235,7 @@ function SupplierPositionPreviewPanel({ preview }: { preview: ReturnType<typeof 
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#155e59]">Accepted quote lifecycle</p>
           <h2 className="mt-1 text-xl font-semibold">Supplier position previews</h2>
           <p className="mt-1 max-w-3xl text-sm text-[#577067]">
-            Positions are generated from borrower quote fills after a funded quote is accepted. Partial fills stay out of position accounting until borrower acceptance is explicit.
+            Positions are generated from borrower quote fills after a funded quote is accepted. Repayment preview allocates across those positions by supplier total due.
           </p>
         </div>
         <div className="rounded-lg bg-[#f7f9f8] px-4 py-3 text-sm">
@@ -245,6 +258,8 @@ function SupplierPositionPreviewPanel({ preview }: { preview: ReturnType<typeof 
           <div className="rounded-lg bg-[#fff4d8] p-4 text-sm text-[#6f4d00]">{preview.notes[0]}</div>
         )}
       </div>
+
+      <RepaymentAllocationPanel preview={repaymentPreview} />
 
       <div className="mt-4 grid gap-2 md:grid-cols-3">
         {preview.notes.map((note) => (
@@ -285,6 +300,58 @@ function SupplierPositionCard({ position }: { position: SupplierPositionPreview 
   );
 }
 
+function RepaymentAllocationPanel({ preview }: { preview: SupplierRepaymentAllocationPreview }) {
+  return (
+    <section className="mt-5 rounded-lg border border-[#d8dfda] bg-[#fbfcfb] p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#155e59]">Repayment allocation preview</p>
+          <h3 className="mt-1 font-semibold">Pro-rata supplier repayment</h3>
+          <p className="mt-1 text-sm text-[#577067]">Demo repayment amount: {formatNullableAssetAmount(preview.repaymentAmount, preview.borrowAsset)}</p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#155e59]">{preview.status}</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <Stat label="Total due" value={formatNullableAssetAmount(preview.totalDue, preview.borrowAsset)} />
+        <Stat label="Allocated" value={formatNullableAssetAmount(preview.totalAllocated, preview.borrowAsset)} />
+        <Stat label="Remaining" value={formatNullableAssetAmount(preview.remainingDue, preview.borrowAsset)} />
+        <Stat label="Unallocated" value={formatNullableAssetAmount(preview.unallocatedAmount, preview.borrowAsset)} />
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {preview.allocations.length ? (
+          preview.allocations.map((allocation) => (
+            <div key={allocation.positionId} className="rounded-md bg-white p-3 text-xs text-[#42524c]">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="font-semibold text-[#17211d]">{allocation.supplierId}</span>
+                <span className="rounded-full bg-[#e3f4ef] px-2 py-0.5 font-semibold text-[#155e59]">{allocation.status}</span>
+              </div>
+              <div className="mt-2 grid gap-2 md:grid-cols-5">
+                <span>Share {formatBps(allocation.supplierShareBps)}</span>
+                <span>Principal {formatOfferAmount(allocation.principalDue, allocation.borrowAsset)}</span>
+                <span>Interest {formatOfferAmount(allocation.interestDue, allocation.borrowAsset)}</span>
+                <span>Allocated {formatOfferAmount(allocation.repaymentAllocated, allocation.borrowAsset)}</span>
+                <span>Remaining {formatOfferAmount(allocation.remainingDue, allocation.borrowAsset)}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-md bg-white p-3 text-sm text-[#6f4d00]">{preview.notes[0]}</div>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-3">
+        {preview.notes.map((note) => (
+          <div key={note} className="rounded-md bg-white px-3 py-2 text-xs text-[#42524c]">
+            {note}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-white px-3 py-2">
@@ -308,4 +375,12 @@ function StatusBadge({ status }: { status: DemoSupplierOfferStatus }) {
 function formatOfferAmount(amount: number, asset: DemoSupplierOffer["borrowAsset"]): string {
   const maximumFractionDigits = asset === "BTC" ? 8 : 2;
   return `${amount.toLocaleString("en-US", { maximumFractionDigits })} ${asset}`;
+}
+
+function formatNullableAssetAmount(amount: number, asset: DemoSupplierOffer["borrowAsset"] | null): string {
+  return asset ? formatOfferAmount(amount, asset) : amount.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function formatBps(bps: number): string {
+  return `${(bps / 100).toFixed(2)}%`;
 }
