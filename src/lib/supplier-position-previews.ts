@@ -158,7 +158,7 @@ export function createAcceptedSupplierFillsFromQuote(
     loanRequestId,
     supplierOfferId: fill.supplierOfferId,
     supplierId: fill.supplierId,
-    borrowAsset: inferBorrowAssetFromQuote(quote),
+    borrowAsset: fill.borrowAsset,
     amount: fill.amount,
     aprBps: fill.aprBps,
     status: "reserved",
@@ -174,10 +174,6 @@ function canActivateSupplierPositionPreviews(input: {
   if (input.fundingStatus === "funded") return input.activationEligible;
   if (input.fundingStatus === "partially_filled") return input.borrowerAcceptedPartialFunding;
   return false;
-}
-
-function inferBorrowAssetFromQuote(quote: BorrowerProtocolQuoteSummary): BorrowAsset {
-  return quote.supplierFills[0]?.borrowAsset ?? "USDC";
 }
 
 function buildWaitingNotes(
