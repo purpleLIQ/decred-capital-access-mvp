@@ -32,6 +32,6 @@ describe("SupplierOffersDemo", () => {
     expect(markup).toContain("Repayment allocation preview");
     expect(markup).toContain("Pro-rata supplier repayment");
     expect(markup).toContain("Demo repayment amount");
-    expect(markup).toContain("Repayment is allocated pro-rata across supplier position total due.");
+    expect(markup).toContain("Repayment is allocated pro-rata across supplier position remaining due.");
   });
 });
