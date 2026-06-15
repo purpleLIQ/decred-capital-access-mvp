@@ -3,12 +3,24 @@
 import { ArrowLeft, Pause, Pencil, Play, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { createBorrowerProtocolQuoteSummary } from "@/lib/borrower-protocol-quote";
+import {
+  createSupplierPositionPreviewsFromAcceptedQuote,
+  type SupplierPositionPreview,
+} from "@/lib/supplier-position-previews";
 import {
   getActiveSupplierCapacity,
   getDemoSupplierOffers,
   type DemoSupplierOffer,
   type DemoSupplierOfferStatus,
 } from "@/lib/supplier-demo-data";
+
+const acceptedQuotePreview = {
+  collateralDcr: 430,
+  borrowAmount: 1_500,
+  borrowAsset: "USDC" as const,
+  durationDays: 30,
+};
 
 export function SupplierOffersDemo() {
   const [offers, setOffers] = useState<DemoSupplierOffer[]>(() => getDemoSupplierOffers());
@@ -20,6 +32,18 @@ export function SupplierOffersDemo() {
     () => getActiveSupplierCapacity({ borrowAsset: asset, durationDays: 30, offers }),
     [asset, offers],
   );
+  const positionPreview = useMemo(() => {
+    const quote = createBorrowerProtocolQuoteSummary({ ...acceptedQuotePreview, offers });
+
+    return createSupplierPositionPreviewsFromAcceptedQuote({
+      quote,
+      loanId: "loan-demo-accepted-quote",
+      borrowerId: "borrower-demo",
+      borrowerLoanRef: "DCL-ACCEPTED-001",
+      durationDays: acceptedQuotePreview.durationDays,
+      borrowerAcceptedPartialFunding: false,
+    });
+  }, [offers]);
 
   function addOffer() {
     const nextOffer: DemoSupplierOffer = {
@@ -74,7 +98,7 @@ export function SupplierOffersDemo() {
             <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#577067]">Supplier desk</p>
             <h1 className="mt-1 text-3xl font-semibold">Offer demo</h1>
             <p className="mt-2 max-w-2xl text-sm text-[#577067]">
-              Demo supplier workflow for creating, editing, pausing, and canceling offers before connecting persistent supplier accounts.
+              Supplier liquidity now feeds borrower quote fills, then accepted fills become supplier position previews.
             </p>
           </div>
           <div className="rounded-lg border border-[#d8dfda] bg-white px-4 py-3 text-sm">
@@ -183,8 +207,81 @@ export function SupplierOffersDemo() {
             </div>
           </div>
         </section>
+
+        <SupplierPositionPreviewPanel preview={positionPreview} />
       </div>
     </main>
+  );
+}
+
+function SupplierPositionPreviewPanel({ preview }: { preview: ReturnType<typeof createSupplierPositionPreviewsFromAcceptedQuote> }) {
+  return (
+    <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#155e59]">Accepted quote lifecycle</p>
+          <h2 className="mt-1 text-xl font-semibold">Supplier position previews</h2>
+          <p className="mt-1 max-w-3xl text-sm text-[#577067]">
+            Positions are generated from borrower quote fills after a funded quote is accepted. Partial fills stay out of position accounting until borrower acceptance is explicit.
+          </p>
+        </div>
+        <div className="rounded-lg bg-[#f7f9f8] px-4 py-3 text-sm">
+          <p className="font-semibold text-[#42524c]">{preview.borrowerLoanRef}</p>
+          <p className="mt-1 text-[#577067]">{preview.fundingStatus}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-4">
+        <Stat label="Positions" value={`${preview.acceptedFillCount}`} />
+        <Stat label="Principal" value={formatOfferAmount(preview.totalPrincipal, "USDC")} />
+        <Stat label="Interest due" value={formatOfferAmount(preview.totalInterestDue, "USDC")} />
+        <Stat label="Remaining due" value={formatOfferAmount(preview.remainingDue, "USDC")} />
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {preview.positions.length ? (
+          preview.positions.map((position) => <SupplierPositionCard key={position.id} position={position} />)
+        ) : (
+          <div className="rounded-lg bg-[#fff4d8] p-4 text-sm text-[#6f4d00]">{preview.notes[0]}</div>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-3">
+        {preview.notes.map((note) => (
+          <div key={note} className="rounded-md bg-[#f7f9f8] px-3 py-2 text-xs text-[#42524c]">
+            {note}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SupplierPositionCard({ position }: { position: SupplierPositionPreview }) {
+  return (
+    <article className="rounded-lg border border-[#d8dfda] bg-[#fbfcfb] p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">{position.supplierId}</h3>
+            <span className="rounded-full bg-[#e3f4ef] px-2 py-0.5 text-xs font-semibold text-[#155e59]">{position.status}</span>
+          </div>
+          <p className="mt-1 text-sm text-[#577067]">{position.id}</p>
+          <p className="mt-1 text-xs text-[#6b7b74]">Fill {position.fillId} from offer {position.supplierOfferId}</p>
+        </div>
+        <div className="grid gap-2 text-sm sm:grid-cols-4 md:min-w-[30rem]">
+          <Stat label="Principal" value={formatOfferAmount(position.principal, position.borrowAsset)} />
+          <Stat label="APR" value={`${(position.aprBps / 100).toFixed(2)}%`} />
+          <Stat label="Interest" value={formatOfferAmount(position.interestDue, position.borrowAsset)} />
+          <Stat label="Total due" value={formatOfferAmount(position.totalDue, position.borrowAsset)} />
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 text-xs text-[#42524c] md:grid-cols-3">
+        <span>Loan: {position.borrowerLoanRef}</span>
+        <span>Repayment address: {position.repaymentAddress}</span>
+        <span>Remaining due: {formatOfferAmount(position.remainingDue, position.borrowAsset)}</span>
+      </div>
+    </article>
   );
 }
 

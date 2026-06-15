@@ -13,6 +13,7 @@ export interface BorrowerSupplierFillSummary {
   fillId: string;
   supplierId: string;
   supplierOfferId: string;
+  borrowAsset: Loan["borrowAsset"];
   amount: number;
   aprBps: number;
   fundingShareBps: number;
@@ -136,6 +137,7 @@ export function createBorrowerProtocolQuoteSummary(input: {
       fillId: allocationRow.fillId,
       supplierId: allocationRow.supplierId,
       supplierOfferId: allocationRow.supplierOfferId,
+      borrowAsset: input.borrowAsset,
       amount: allocationRow.filledAmount,
       aprBps: allocationRow.aprBps,
       fundingShareBps: allocationRow.fundingShareBps,

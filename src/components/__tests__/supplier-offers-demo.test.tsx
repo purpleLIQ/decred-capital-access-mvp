@@ -15,4 +15,14 @@ describe("SupplierOffersDemo", () => {
     expect(markup).toContain("1,800 USDC");
     expect(markup).toContain("Matching active USDC capacity for a 30-day request.");
   });
+
+  it("shows supplier positions derived from accepted quote fills", () => {
+    const markup = renderToStaticMarkup(<SupplierOffersDemo />);
+
+    expect(markup).toContain("Accepted quote lifecycle");
+    expect(markup).toContain("Supplier position previews");
+    expect(markup).toContain("Positions are generated from borrower quote fills");
+    expect(markup).toContain("DCL-ACCEPTED-001");
+    expect(markup).toContain("Repayment fields are shaped for deterministic pro-rata allocation in the next PR.");
+  });
 });
