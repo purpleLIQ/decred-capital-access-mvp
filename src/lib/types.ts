@@ -90,6 +90,7 @@ export interface ProtocolSupplierFillSummary {
   fillId: string;
   supplierId: string;
   supplierOfferId: string;
+  borrowAsset: Loan["borrowAsset"];
   amount: number;
   aprBps: number;
   fundingShareBps: number;
