@@ -1,5 +1,5 @@
 import { BorrowFlow } from "@/components/borrow-flow";
 
-export default function Home() {
+export default function Page() {
   return <BorrowFlow />;
 }
