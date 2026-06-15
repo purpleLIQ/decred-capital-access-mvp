@@ -13,9 +13,7 @@ export type LifecycleStatusSectionKey =
   | "repaymentDetection"
   | "collateralRelease"
   | "liquidationHealth"
-  | "arbiterReview"
-  | "evidenceBundle"
-  | "fundingRoute";
+  | "arbiterReview";
 
 export interface HeadlessLifecycleStore {
   save(record: HeadlessLoanLifecycleRecord): Promise<HeadlessLoanLifecycleRecord>;
@@ -70,20 +68,7 @@ export function createLocalHeadlessLifecycleStore(): HeadlessLifecycleStore {
     },
 
     async updateStatusSection(lookupCode, section, patch, updatedAt = new Date().toISOString()) {
-      return updateRecord(lookupCode, (record) => {
-        const currentSection = record[section] as Record<string, unknown>;
-        return touchRecord(
-          {
-            ...record,
-            [section]: {
-              ...currentSection,
-              ...patch,
-              updatedAt,
-            },
-          } as HeadlessLoanLifecycleRecord,
-          updatedAt,
-        );
-      });
+      return updateRecord(lookupCode, (record) => applyStatusSectionPatch(record, section, patch, updatedAt));
     },
   };
 }
@@ -105,6 +90,32 @@ function updateRecord(
   nextRecords[index] = nextRecord;
   persistRecords(nextRecords);
   return nextRecord;
+}
+
+function applyStatusSectionPatch(
+  record: HeadlessLoanLifecycleRecord,
+  section: LifecycleStatusSectionKey,
+  patch: Partial<LifecycleStatusSection<string>>,
+  updatedAt: string,
+): HeadlessLoanLifecycleRecord {
+  const sectionPatch = { ...patch, updatedAt };
+
+  switch (section) {
+    case "collateralLock":
+      return touchRecord({ ...record, collateralLock: { ...record.collateralLock, ...sectionPatch } }, updatedAt);
+    case "dcrPlatformFeeOutput":
+      return touchRecord({ ...record, dcrPlatformFeeOutput: { ...record.dcrPlatformFeeOutput, ...sectionPatch } }, updatedAt);
+    case "supplierDisbursement":
+      return touchRecord({ ...record, supplierDisbursement: { ...record.supplierDisbursement, ...sectionPatch } }, updatedAt);
+    case "repaymentDetection":
+      return touchRecord({ ...record, repaymentDetection: { ...record.repaymentDetection, ...sectionPatch } }, updatedAt);
+    case "collateralRelease":
+      return touchRecord({ ...record, collateralRelease: { ...record.collateralRelease, ...sectionPatch } }, updatedAt);
+    case "liquidationHealth":
+      return touchRecord({ ...record, liquidationHealth: { ...record.liquidationHealth, ...sectionPatch } }, updatedAt);
+    case "arbiterReview":
+      return touchRecord({ ...record, arbiterReview: { ...record.arbiterReview, ...sectionPatch } }, updatedAt);
+  }
 }
 
 function touchRecord(record: HeadlessLoanLifecycleRecord, updatedAt: string): HeadlessLoanLifecycleRecord {
