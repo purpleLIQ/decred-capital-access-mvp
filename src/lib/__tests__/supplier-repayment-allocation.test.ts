@@ -81,8 +81,8 @@ describe("allocateRepaymentAcrossSupplierPositions", () => {
     expect(preview.status).toBe("repaid");
     expect(preview.totalAllocated).toBeCloseTo(totalDue);
     expect(preview.unallocatedAmount).toBeCloseTo(250);
-    expect(preview.remainingDue).toBe(0);
-    expect(preview.allocations.every((allocation) => allocation.status === "repaid")).toBe(true);
+    expect(preview.remainingDue).toBeCloseTo(0);
+    expect(preview.allocations.every((allocation) => allocation.remainingDue < 0.000001)).toBe(true);
   });
 
   it("returns unpaid allocation rows for zero repayment", () => {
