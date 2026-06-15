@@ -75,6 +75,12 @@ export function OpsDashboard() {
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
               className="inline-flex h-11 items-center justify-center rounded-md border border-[#155e59]/25 bg-white px-4 text-sm font-semibold text-[#155e59] hover:bg-[#e3f4ef]"
+              href="/supplier/offers"
+            >
+              Supplier offers
+            </Link>
+            <Link
+              className="inline-flex h-11 items-center justify-center rounded-md border border-[#155e59]/25 bg-white px-4 text-sm font-semibold text-[#155e59] hover:bg-[#e3f4ef]"
               href="/ops/protocol-scenario"
             >
               Protocol scenario
@@ -141,50 +147,32 @@ export function OpsDashboard() {
               </div>
 
               <div className="rounded-lg border border-[#d8dfda] bg-white p-5">
-                <h2 className="text-xl font-semibold">Oracle warnings</h2>
+                <h2 className="text-xl font-semibold">Guardrails</h2>
                 <div className="mt-4 space-y-2">
-                  {health.market.warnings.length ? (
-                    health.market.warnings.map((warning) => <Warning key={warning}>{warning}</Warning>)
-                  ) : (
-                    <p className="rounded-md bg-[#e3f4ef] p-3 text-sm text-[#155e59]">No active oracle warnings.</p>
-                  )}
+                  {health.guardrails.map((guardrail) => (
+                    <div key={guardrail} className="rounded-md bg-[#f7f9f8] px-3 py-2 text-sm text-[#42524c]">
+                      {guardrail}
+                    </div>
+                  ))}
                 </div>
-                <p className="mt-4 text-xs text-[#6b7b74]">Last updated {shortDateTime(health.market.updatedAt)}</p>
               </div>
             </section>
 
-            <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-lg border border-[#d8dfda] bg-white p-5">
-                <h2 className="text-xl font-semibold">Loans by status</h2>
-                <div className="mt-4 space-y-2">
-                  {Object.entries(health.counts.loansByStatus).map(([status, count]) => (
-                    <div key={status} className="flex items-center justify-between rounded-md bg-[#f7f9f8] px-3 py-2 text-sm">
-                      <span className="capitalize text-[#42524c]">{status.replaceAll("_", " ")}</span>
-                      <strong>{count}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-[#d8dfda] bg-white p-5">
-                <h2 className="text-xl font-semibold">Production guardrails</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {health.guardrails.map((guardrail) => (
-                    <div key={guardrail} className="flex gap-3 rounded-md bg-[#f7f9f8] p-3 text-sm text-[#42524c]">
-                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#155e59]" />
-                      <span>{guardrail}</span>
-                    </div>
-                  ))}
-                </div>
+            <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
+              <h2 className="text-xl font-semibold">Loan statuses</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {Object.entries(health.counts.loansByStatus).map(([status, count]) => (
+                  <div key={status} className="rounded-md bg-[#f7f9f8] px-3 py-2 text-sm">
+                    <span className="font-medium capitalize">{status.replaceAll("_", " ")}</span>
+                    <span className="float-right font-semibold">{count}</span>
+                  </div>
+                ))}
               </div>
             </section>
           </div>
         ) : (
           <div className="grid min-h-64 place-items-center rounded-lg border border-dashed border-[#c4d0c8] bg-white p-8 text-center text-[#6b7b74]">
-            <div>
-              <Activity className="mx-auto h-8 w-8" />
-              <p className="mt-3 text-sm">Loading system health...</p>
-            </div>
+            <p className="text-sm">Loading system health...</p>
           </div>
         )}
       </div>
@@ -205,17 +193,11 @@ function HealthMetric({
   detail: string;
   tone: "good" | "warning" | "neutral";
 }) {
-  const toneClass =
-    tone === "good"
-      ? "bg-[#e3f4ef] text-[#155e59]"
-      : tone === "warning"
-        ? "bg-[#fff4d8] text-[#855d00]"
-        : "bg-[#eef3f0] text-[#42524c]";
-
+  const iconClass = tone === "good" ? "bg-[#e3f4ef] text-[#155e59]" : tone === "warning" ? "bg-[#fff4d8] text-[#855d00]" : "bg-[#eef2f1] text-[#42524c]";
   return (
     <div className="rounded-lg border border-[#d8dfda] bg-white p-4">
       <div className="flex items-center gap-3">
-        <div className={`grid h-10 w-10 place-items-center rounded-md ${toneClass}`}>
+        <div className={`grid h-10 w-10 place-items-center rounded-md ${iconClass}`}>
           <Icon className="h-5 w-5" />
         </div>
         <div>
@@ -232,31 +214,11 @@ function CheckRow({ label, passed }: { label: string; passed: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md bg-[#f7f9f8] px-3 py-2 text-sm">
       <span>{label}</span>
-      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${passed ? "bg-[#e3f4ef] text-[#155e59]" : "bg-[#fff4d8] text-[#855d00]"}`}>
-        {passed ? "pass" : "review"}
-      </span>
-    </div>
-  );
-}
-
-function Warning({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex gap-2 rounded-md bg-[#fff4d8] p-3 text-sm text-[#6f4d00]">
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>{children}</span>
+      <span className={passed ? "font-semibold text-[#155e59]" : "font-semibold text-[#8b2f22]"}>{passed ? "Pass" : "Review"}</span>
     </div>
   );
 }
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
-}
-
-function shortDateTime(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
