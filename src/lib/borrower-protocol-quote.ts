@@ -1,13 +1,19 @@
 import { createLoanQuote } from "./protocol/loan-quotes";
 import type { LoanRequest } from "./protocol/loan-requests";
 import { DEFAULT_PLATFORM_FEE_CONFIG } from "./protocol/platform-fees";
-import type { SupplierFill } from "./protocol/supplier-offers";
 import { protocolConfig } from "./protocol-config";
+import {
+  allocateSupplierOffersToBorrowerRequest,
+  createSupplierFillsFromDemoAllocation,
+  getDemoSupplierOffers,
+  type DemoSupplierOffer,
+} from "./supplier-demo-data";
 import type { Loan } from "./types";
 
 export interface BorrowerSupplierFillSummary {
   fillId: string;
   supplierId: string;
+  supplierOfferId: string;
   amount: number;
   aprBps: number;
   fundingShareBps: number;
@@ -28,6 +34,8 @@ export interface BorrowerProtocolQuoteSummary {
   collateralRequiredWithFeeDcr: number;
   supplierFillCount: number;
   supplierFilledAmount: number;
+  supplierRemainingAmount: number;
+  activeSupplierCapacity: number;
   supplierFills: BorrowerSupplierFillSummary[];
   nextBuildStep: string;
   notes: string[];
@@ -38,6 +46,7 @@ export function createBorrowerProtocolQuoteSummary(input: {
   borrowAmount: number;
   borrowAsset: Loan["borrowAsset"];
   durationDays?: number;
+  offers?: DemoSupplierOffer[];
 }): BorrowerProtocolQuoteSummary {
   const durationDays = input.durationDays ?? 30;
   const loanRequest: LoanRequest = {
@@ -53,30 +62,17 @@ export function createBorrowerProtocolQuoteSummary(input: {
     fundingDeadline: "2026-06-11T12:00:00.000Z",
     borrowerAcceptedPartialFunding: false,
   };
-  const fills: SupplierFill[] = [
-    {
-      id: "borrower-demo-fill-1",
-      loanRequestId: loanRequest.id,
-      supplierOfferId: "borrower-demo-offer-1",
-      supplierId: "supplier-demo-1",
-      borrowAsset: input.borrowAsset,
-      amount: Number((input.borrowAmount * 0.65).toFixed(8)),
-      aprBps: protocolConfig.estimatedAprBps,
-      status: "reserved",
-      reservedAt: "2026-06-10T12:01:00.000Z",
-    },
-    {
-      id: "borrower-demo-fill-2",
-      loanRequestId: loanRequest.id,
-      supplierOfferId: "borrower-demo-offer-2",
-      supplierId: "supplier-demo-2",
-      borrowAsset: input.borrowAsset,
-      amount: Number((input.borrowAmount * 0.35).toFixed(8)),
-      aprBps: protocolConfig.estimatedAprBps + 75,
-      status: "reserved",
-      reservedAt: "2026-06-10T12:03:00.000Z",
-    },
-  ];
+  const allocation = allocateSupplierOffersToBorrowerRequest({
+    borrowAsset: input.borrowAsset,
+    requestedAmount: input.borrowAmount,
+    durationDays,
+    offers: input.offers ?? getDemoSupplierOffers(),
+  });
+  const fills = createSupplierFillsFromDemoAllocation({
+    loanRequestId: loanRequest.id,
+    allocation,
+    reservedAt: "2026-06-10T12:01:00.000Z",
+  });
   const quote = createLoanQuote({
     request: loanRequest,
     fills,
@@ -92,7 +88,7 @@ export function createBorrowerProtocolQuoteSummary(input: {
 
   return {
     loanRequestId: quote.loanRequestId,
-    fundingStatus: quote.fundingState.status,
+    fundingStatus: allocation.status,
     fundingProgressBps: quote.fundingState.fundingProgressBps,
     activationEligible: quote.activationEligible,
     weightedSupplierAprBps: quote.interestRateQuote.weightedSupplierAprBps,
@@ -104,19 +100,22 @@ export function createBorrowerProtocolQuoteSummary(input: {
     collateralRequiredWithFeeDcr: quote.collateralRequiredWithFee,
     supplierFillCount: quote.supplierAllocations.length,
     supplierFilledAmount: quote.fundingState.filledAmount,
-    supplierFills: quote.supplierAllocations.map((allocation) => ({
-      fillId: allocation.fillId,
-      supplierId: allocation.supplierId,
-      amount: allocation.filledAmount,
-      aprBps: allocation.aprBps,
-      fundingShareBps: allocation.fundingShareBps,
-      status: fills.find((fill) => fill.id === allocation.fillId)?.status ?? "reserved",
+    supplierRemainingAmount: allocation.remainingAmount,
+    activeSupplierCapacity: allocation.activeCapacity,
+    supplierFills: quote.supplierAllocations.map((allocationRow) => ({
+      fillId: allocationRow.fillId,
+      supplierId: allocationRow.supplierId,
+      supplierOfferId: allocationRow.supplierOfferId,
+      amount: allocationRow.filledAmount,
+      aprBps: allocationRow.aprBps,
+      fundingShareBps: allocationRow.fundingShareBps,
+      status: fills.find((fill) => fill.id === allocationRow.fillId)?.status ?? "reserved",
     })),
-    nextBuildStep: "Connect live supplier offers and partial-fill progress to this borrower quote flow.",
+    nextBuildStep: "Create supplier positions from these fills, then preview repayment allocation.",
     notes: [
-      "Protocol quote math is attached to the borrower-facing demo quote.",
+      "Borrower supplier fills now come from active demo supplier offers.",
+      "Paused, canceled, mismatched-asset, and over-duration offers are excluded from quote funding.",
       "The 1% DCR platform fee is included in required collateral.",
-      "Next product step is supplier offer creation and supplier position visibility.",
     ],
   };
 }
