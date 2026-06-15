@@ -23,6 +23,15 @@ describe("SupplierOffersDemo", () => {
     expect(markup).toContain("Supplier position previews");
     expect(markup).toContain("Positions are generated from borrower quote fills");
     expect(markup).toContain("DCL-ACCEPTED-001");
-    expect(markup).toContain("Repayment fields are shaped for deterministic pro-rata allocation in the next PR.");
+    expect(markup).toContain("Repayment preview allocates across those positions by supplier total due.");
+  });
+
+  it("shows repayment allocation across supplier positions", () => {
+    const markup = renderToStaticMarkup(<SupplierOffersDemo />);
+
+    expect(markup).toContain("Repayment allocation preview");
+    expect(markup).toContain("Pro-rata supplier repayment");
+    expect(markup).toContain("Demo repayment amount");
+    expect(markup).toContain("Repayment is allocated pro-rata across supplier position total due.");
   });
 });
