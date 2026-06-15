@@ -3,12 +3,9 @@
 import { ArrowLeft, Pause, Pencil, Play, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { createBorrowerProtocolQuoteSummary } from "@/lib/borrower-protocol-quote";
-import { allocateRepaymentAcrossSupplierPositions, type SupplierRepaymentAllocationPreview } from "@/lib/supplier-repayment-allocation";
-import {
-  createSupplierPositionPreviewsFromAcceptedQuote,
-  type SupplierPositionPreview,
-} from "@/lib/supplier-position-previews";
+import { createDemoLoanLifecycleState, type DemoLoanLifecycleState } from "@/lib/demo-loan-lifecycle-state";
+import type { SupplierRepaymentAllocationPreview } from "@/lib/supplier-repayment-allocation";
+import type { SupplierPositionPreview } from "@/lib/supplier-position-previews";
 import {
   getActiveSupplierCapacity,
   getDemoSupplierOffers,
@@ -35,21 +32,18 @@ export function SupplierOffersDemo() {
     () => getActiveSupplierCapacity({ borrowAsset: asset, durationDays: 30, offers }),
     [asset, offers],
   );
-  const positionPreview = useMemo(() => {
-    const quote = createBorrowerProtocolQuoteSummary({ ...acceptedQuotePreview, offers });
-
-    return createSupplierPositionPreviewsFromAcceptedQuote({
-      quote,
-      loanId: "loan-demo-accepted-quote",
-      borrowerId: "borrower-demo",
-      borrowerLoanRef: "DCL-ACCEPTED-001",
-      durationDays: acceptedQuotePreview.durationDays,
-      borrowerAcceptedPartialFunding: false,
-    });
-  }, [offers]);
-  const repaymentPreview = useMemo(
-    () => allocateRepaymentAcrossSupplierPositions({ positions: positionPreview.positions, repaymentAmount: demoRepaymentAmount }),
-    [positionPreview.positions],
+  const lifecycleState = useMemo(
+    () =>
+      createDemoLoanLifecycleState({
+        borrowerId: "borrower-demo",
+        borrowerLoanRef: "DCL-ACCEPTED-001",
+        loanId: "loan-demo-accepted-quote",
+        borrowerAcceptedPartialFunding: false,
+        repaymentAmount: demoRepaymentAmount,
+        ...acceptedQuotePreview,
+        offers,
+      }),
+    [offers],
   );
 
   function addOffer() {
@@ -215,19 +209,15 @@ export function SupplierOffersDemo() {
           </div>
         </section>
 
-        <SupplierPositionPreviewPanel preview={positionPreview} repaymentPreview={repaymentPreview} />
+        <SupplierLifecyclePanel lifecycleState={lifecycleState} />
       </div>
     </main>
   );
 }
 
-function SupplierPositionPreviewPanel({
-  preview,
-  repaymentPreview,
-}: {
-  preview: ReturnType<typeof createSupplierPositionPreviewsFromAcceptedQuote>;
-  repaymentPreview: SupplierRepaymentAllocationPreview;
-}) {
+function SupplierLifecyclePanel({ lifecycleState }: { lifecycleState: DemoLoanLifecycleState }) {
+  const preview = lifecycleState.supplierPositions;
+
   return (
     <section className="rounded-lg border border-[#d8dfda] bg-white p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -235,12 +225,12 @@ function SupplierPositionPreviewPanel({
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#155e59]">Accepted quote lifecycle</p>
           <h2 className="mt-1 text-xl font-semibold">Supplier position previews</h2>
           <p className="mt-1 max-w-3xl text-sm text-[#577067]">
-            Positions are generated from borrower quote fills after a funded quote is accepted. Repayment preview allocates across those positions by supplier total due.
+            Positions, repayment allocation, and lifecycle stage now come from a production-shaped demo adapter instead of component-only state.
           </p>
         </div>
         <div className="rounded-lg bg-[#f7f9f8] px-4 py-3 text-sm">
-          <p className="font-semibold text-[#42524c]">{preview.borrowerLoanRef}</p>
-          <p className="mt-1 text-[#577067]">{preview.fundingStatus}</p>
+          <p className="font-semibold text-[#42524c]">{lifecycleState.borrowerLoanRef}</p>
+          <p className="mt-1 text-[#577067]">{lifecycleState.stage}</p>
         </div>
       </div>
 
@@ -259,15 +249,8 @@ function SupplierPositionPreviewPanel({
         )}
       </div>
 
-      <RepaymentAllocationPanel preview={repaymentPreview} />
-
-      <div className="mt-4 grid gap-2 md:grid-cols-3">
-        {preview.notes.map((note) => (
-          <div key={note} className="rounded-md bg-[#f7f9f8] px-3 py-2 text-xs text-[#42524c]">
-            {note}
-          </div>
-        ))}
-      </div>
+      <RepaymentAllocationPanel preview={lifecycleState.repaymentAllocation} />
+      <LifecycleAdapterBoundaryPanel lifecycleState={lifecycleState} />
     </section>
   );
 }
@@ -347,6 +330,33 @@ function RepaymentAllocationPanel({ preview }: { preview: SupplierRepaymentAlloc
             {note}
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function LifecycleAdapterBoundaryPanel({ lifecycleState }: { lifecycleState: DemoLoanLifecycleState }) {
+  return (
+    <section className="mt-5 rounded-lg border border-[#d8dfda] bg-[#fbfcfb] p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#155e59]">Adapter boundary</p>
+      <h3 className="mt-1 font-semibold">Production-shaped lifecycle state</h3>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">Replaceable sources</p>
+          <ul className="mt-2 space-y-2 text-sm text-[#42524c]">
+            {lifecycleState.adapterBoundaries.map((boundary) => (
+              <li key={boundary}>{boundary}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">Next integrations</p>
+          <ul className="mt-2 space-y-2 text-sm text-[#42524c]">
+            {lifecycleState.nextIntegrationSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );
