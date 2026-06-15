@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  async rewrites() {
+    return [{ source: "/ops/lifecycles", destination: "/ops/records" }];
+  },
 };
 
 export default nextConfig;
