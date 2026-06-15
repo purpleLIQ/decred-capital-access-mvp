@@ -46,8 +46,9 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
   const totalDue = roundAssetAmount(positions.reduce((sum, position) => sum + position.totalDue, 0));
   const totalPrincipalDue = roundAssetAmount(positions.reduce((sum, position) => sum + position.principal, 0));
   const totalInterestDue = roundAssetAmount(positions.reduce((sum, position) => sum + position.interestDue, 0));
-  const totalExistingReceived = roundAssetAmount(positions.reduce((sum, position) => sum + position.repaymentReceived, 0));
-  const outstandingDue = roundAssetAmount(Math.max(totalDue - totalExistingReceived, 0));
+  const outstandingDue = roundAssetAmount(
+    positions.reduce((sum, position) => sum + Math.max(position.totalDue - position.repaymentReceived, 0), 0),
+  );
   const allocatedPool = roundAssetAmount(Math.min(repaymentAmount, outstandingDue));
   let allocatedSoFar = 0;
 
@@ -74,10 +75,10 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
 
   const allocations = positions.map((position, index): SupplierRepaymentAllocationRow => {
     const isLast = index === positions.length - 1;
-    const outstandingPositionDue = Math.max(position.totalDue - position.repaymentReceived, 0);
+    const outstandingPositionDue = roundAssetAmount(Math.max(position.totalDue - position.repaymentReceived, 0));
     const proRataAmount = isLast
       ? roundAssetAmount(allocatedPool - allocatedSoFar)
-      : roundAssetAmount(allocatedPool * (position.totalDue / totalDue));
+      : roundAssetAmount(allocatedPool * (outstandingPositionDue / outstandingDue));
     const repaymentAllocated = roundAssetAmount(Math.min(proRataAmount, outstandingPositionDue));
     allocatedSoFar = roundAssetAmount(allocatedSoFar + repaymentAllocated);
     const repaymentReceived = roundAssetAmount(position.repaymentReceived + repaymentAllocated);
@@ -119,7 +120,7 @@ export function allocateRepaymentAcrossSupplierPositions(input: {
     status: resolvePreviewStatus(totalReceived, totalDue),
     allocations,
     notes: [
-      "Repayment is allocated pro-rata across supplier position total due.",
+      "Repayment is allocated pro-rata across supplier position remaining due.",
       "Principal, interest, received, remaining due, and supplier share are explicit for each supplier.",
       "This remains a deterministic preview; watcher-backed repayment detection comes later.",
     ],
