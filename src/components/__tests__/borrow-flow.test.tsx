@@ -1,16 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { BorrowFlow } from "../borrow-flow";
+import { StoredBorrowerFlow } from "../stored-borrower-flow";
 
-describe("BorrowFlow", () => {
+describe("StoredBorrowerFlow", () => {
   it("renders the accountless quote acceptance and lookup path", () => {
-    const markup = renderToStaticMarkup(<BorrowFlow />);
+    const markup = renderToStaticMarkup(<StoredBorrowerFlow />);
 
-    expect(markup).toContain("Accept quote without an account");
-    expect(markup).toContain("Borrower contact is optional and only used for updates or recovery. It is not signup.");
+    expect(markup).toContain("Quote. Accept. Save your loan reference.");
+    expect(markup).toContain("Optional contact");
+    expect(markup).toContain("This is not an account");
     expect(markup).toContain("Loan lookup");
-    expect(markup).toContain("Enter the public loan reference. No login required.");
-    expect(markup).toContain("Accept quote");
+    expect(markup).toContain("No borrower login required.");
+    expect(markup).toContain("Accept and save");
   });
 });
