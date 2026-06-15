@@ -3,7 +3,12 @@
 import { ArrowLeft, Pause, Pencil, Play, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { getDemoSupplierOffers, type DemoSupplierOffer, type DemoSupplierOfferStatus } from "@/lib/supplier-demo-data";
+import {
+  getActiveSupplierCapacity,
+  getDemoSupplierOffers,
+  type DemoSupplierOffer,
+  type DemoSupplierOfferStatus,
+} from "@/lib/supplier-demo-data";
 
 export function SupplierOffersDemo() {
   const [offers, setOffers] = useState<DemoSupplierOffer[]>(() => getDemoSupplierOffers());
@@ -12,8 +17,8 @@ export function SupplierOffersDemo() {
   const [asset, setAsset] = useState<DemoSupplierOffer["borrowAsset"]>("USDC");
 
   const activeCapacity = useMemo(
-    () => offers.filter((offer) => offer.status === "active").reduce((total, offer) => total + offer.availableAmount, 0),
-    [offers],
+    () => getActiveSupplierCapacity({ borrowAsset: asset, durationDays: 30, offers }),
+    [asset, offers],
   );
 
   function addOffer() {
@@ -74,8 +79,8 @@ export function SupplierOffersDemo() {
           </div>
           <div className="rounded-lg border border-[#d8dfda] bg-white px-4 py-3 text-sm">
             <p className="font-semibold text-[#155e59]">Active capacity</p>
-            <p className="mt-1 text-2xl font-semibold">{formatOfferAmount(activeCapacity, "USDC")}</p>
-            <p className="mt-1 text-xs text-[#6b7b74]">Seeded from shared borrower/supplier demo offers.</p>
+            <p className="mt-1 text-2xl font-semibold">{formatOfferAmount(activeCapacity, asset)}</p>
+            <p className="mt-1 text-xs text-[#6b7b74]">Matching active {asset} capacity for a 30-day request.</p>
           </div>
         </header>
 

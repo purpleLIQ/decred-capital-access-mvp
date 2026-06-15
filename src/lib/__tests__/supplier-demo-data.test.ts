@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { allocateSupplierOffersToBorrowerRequest, type DemoSupplierOffer } from "../supplier-demo-data";
+import { allocateSupplierOffersToBorrowerRequest, getActiveSupplierCapacity, type DemoSupplierOffer } from "../supplier-demo-data";
 
 const offers: DemoSupplierOffer[] = [
   {
@@ -97,5 +97,24 @@ describe("allocateSupplierOffersToBorrowerRequest", () => {
     expect(allocation.remainingAmount).toBe(0);
     expect(allocation.fundingProgressBps).toBe(10_000);
     expect(allocation.status).toBe("funded");
+  });
+
+  it("excludes active offers when the requested duration is too long", () => {
+    const allocation = allocateSupplierOffersToBorrowerRequest({
+      borrowAsset: "USDC",
+      requestedAmount: 1_000,
+      durationDays: 45,
+      offers,
+    });
+
+    expect(allocation.fills.map((fill) => fill.supplierOfferId)).toEqual([]);
+    expect(allocation.activeCapacity).toBe(0);
+    expect(allocation.filledAmount).toBe(0);
+    expect(allocation.remainingAmount).toBe(1_000);
+    expect(allocation.status).toBe("unfunded");
+  });
+
+  it("returns zero capacity when no active offer matches the asset", () => {
+    expect(getActiveSupplierCapacity({ borrowAsset: "USDT", durationDays: 30, offers })).toBe(0);
   });
 });

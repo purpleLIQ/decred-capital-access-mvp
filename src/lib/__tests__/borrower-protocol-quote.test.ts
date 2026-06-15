@@ -93,4 +93,24 @@ describe("createBorrowerProtocolQuoteSummary", () => {
     expect(quote.fundingStatus).toBe("partially_filled");
     expect(quote.fundingProgressBps).toBeCloseTo(6_666.666667);
   });
+
+  it("returns an unfunded quote when no active supplier offers match", () => {
+    const quote = createBorrowerProtocolQuoteSummary({
+      collateralDcr: 100,
+      borrowAmount: 1_000,
+      borrowAsset: "USDT",
+      offers,
+    });
+
+    expect(quote.fundingStatus).toBe("unfunded");
+    expect(quote.activationEligible).toBe(false);
+    expect(quote.weightedSupplierAprBps).toBe(0);
+    expect(quote.borrowerAprBps).toBe(0);
+    expect(quote.supplierFillCount).toBe(0);
+    expect(quote.supplierFilledAmount).toBe(0);
+    expect(quote.supplierRemainingAmount).toBe(1_000);
+    expect(quote.activeSupplierCapacity).toBe(0);
+    expect(quote.supplierFills).toEqual([]);
+    expect(quote.notes).toContain("No active supplier offers can currently fill this quote.");
+  });
 });

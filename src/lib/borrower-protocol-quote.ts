@@ -1,7 +1,6 @@
 import { createLoanQuote } from "./protocol/loan-quotes";
-import type { LoanRequest } from "./protocol/loan-requests";
-import { DEFAULT_PLATFORM_FEE_CONFIG } from "./protocol/platform-fees";
-import { protocolConfig } from "./protocol-config";
+import { createLoanFundingState, type LoanRequest } from "./protocol/loan-requests";
+import { calculatePlatformFeeBreakdown, DEFAULT_PLATFORM_FEE_CONFIG } from "./protocol/platform-fees";
 import {
   allocateSupplierOffersToBorrowerRequest,
   createSupplierFillsFromDemoAllocation,
@@ -73,6 +72,37 @@ export function createBorrowerProtocolQuoteSummary(input: {
     allocation,
     reservedAt: "2026-06-10T12:01:00.000Z",
   });
+
+  if (fills.length === 0) {
+    const fundingState = createLoanFundingState(loanRequest, fills);
+    const platformFee = calculatePlatformFeeBreakdown(loanRequest.collateralAmount);
+
+    return {
+      loanRequestId: loanRequest.id,
+      fundingStatus: allocation.status,
+      fundingProgressBps: fundingState.fundingProgressBps,
+      activationEligible: false,
+      weightedSupplierAprBps: 0,
+      borrowerAprBps: 0,
+      platformFeeRateBps: DEFAULT_PLATFORM_FEE_CONFIG.platformFeeBps,
+      totalPlatformFeeDcr: platformFee.totalFeeAmount,
+      platformFeeDcr: platformFee.platformAmount,
+      arbiterReserveDcr: platformFee.arbiterReserveAmount,
+      collateralRequiredWithFeeDcr: loanRequest.collateralAmount + platformFee.totalFeeAmount,
+      supplierFillCount: 0,
+      supplierFilledAmount: fundingState.filledAmount,
+      supplierRemainingAmount: allocation.remainingAmount,
+      activeSupplierCapacity: allocation.activeCapacity,
+      supplierFills: [],
+      nextBuildStep: "Add active matching supplier offers before borrower collateral lock.",
+      notes: [
+        "No active supplier offers can currently fill this quote.",
+        "Borrower collateral lock remains blocked until supplier liquidity is available.",
+        "The 1% DCR platform fee is shown for planning, but should not be charged until funding is ready.",
+      ],
+    };
+  }
+
   const quote = createLoanQuote({
     request: loanRequest,
     fills,
