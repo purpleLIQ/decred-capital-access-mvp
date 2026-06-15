@@ -11,5 +11,7 @@ describe("OpsLifecycleRecords", () => {
     expect(markup).toContain("same store/API boundary used by borrower lookup");
     expect(markup).toContain("Refresh records");
     expect(markup).toContain("No lifecycle records saved yet");
+    expect(markup).toContain("Lifecycle event history");
+    expect(markup).toContain("Recent transitions");
   });
 });
