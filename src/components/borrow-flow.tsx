@@ -369,9 +369,23 @@ function ProtocolQuotePanel({ protocolQuote, borrowAsset }: { protocolQuote?: Pr
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <ProtocolMetric label="APR" value={formatBps(protocolQuote.borrowerAprBps)} />
-        <ProtocolMetric label="Supplier fill" value={`${protocolQuote.supplierFilledAmount} ${borrowAsset}`} />
-        <ProtocolMetric label="DCR fee" value={`${protocolQuote.totalPlatformFeeDcr} DCR`} />
-        <ProtocolMetric label="Collateral required" value={`${protocolQuote.collateralRequiredWithFeeDcr} DCR`} />
+        <ProtocolMetric label="Active capacity" value={formatAssetAmount(protocolQuote.activeSupplierCapacity, borrowAsset)} />
+        <ProtocolMetric label="Filled" value={formatAssetAmount(protocolQuote.supplierFilledAmount, borrowAsset)} />
+        <ProtocolMetric label="Remaining" value={formatAssetAmount(protocolQuote.supplierRemainingAmount, borrowAsset)} />
+      </div>
+      <div className="mt-4 rounded-xl bg-white p-3">
+        <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">
+          <span>Funding progress</span>
+          <span>{formatBps(protocolQuote.fundingProgressBps)}</span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#d9e4df]">
+          <div className="h-2 rounded-full bg-[#2ed6a1]" style={{ width: `${Math.min(protocolQuote.fundingProgressBps / 100, 100)}%` }} />
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <SummaryRow label="Active capacity" value={formatAssetAmount(protocolQuote.activeSupplierCapacity, borrowAsset)} />
+          <SummaryRow label="Filled amount" value={formatAssetAmount(protocolQuote.supplierFilledAmount, borrowAsset)} />
+          <SummaryRow label="Remaining" value={formatAssetAmount(protocolQuote.supplierRemainingAmount, borrowAsset)} />
+        </div>
       </div>
       <div className="mt-4 rounded-xl bg-white p-3">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">1% DCR platform fee</p>
@@ -384,25 +398,29 @@ function ProtocolQuotePanel({ protocolQuote, borrowAsset }: { protocolQuote?: Pr
       </div>
       <div className="mt-4 space-y-2">
         <SummaryRow label="Weighted supplier APR" value={formatBps(protocolQuote.weightedSupplierAprBps)} />
-        <SummaryRow label="Funding progress" value={formatBps(protocolQuote.fundingProgressBps)} />
         <SummaryRow label="Next build step" value={protocolQuote.nextBuildStep} />
       </div>
       <div className="mt-4 rounded-xl bg-white p-3">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6b7b74]">Supplier fills</p>
         <div className="mt-3 space-y-2">
-          {protocolQuote.supplierFills.map((fill) => (
-            <div key={fill.fillId} className="rounded-lg bg-[#f7faf9] p-3 text-xs text-[#42524c]">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-semibold text-[#091440]">{fill.supplierId}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-[#118864]">{fill.status}</span>
+          {protocolQuote.supplierFills.length ? (
+            protocolQuote.supplierFills.map((fill) => (
+              <div key={fill.fillId} className="rounded-lg bg-[#f7faf9] p-3 text-xs text-[#42524c]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-[#091440]">{fill.supplierId}</span>
+                  <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-[#118864]">{fill.status}</span>
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                  <span>{fill.supplierOfferId}</span>
+                  <span>{formatAssetAmount(fill.amount, borrowAsset)}</span>
+                  <span>{formatBps(fill.aprBps)} APR</span>
+                  <span>{formatBps(fill.fundingShareBps)} share</span>
+                </div>
               </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                <span>{fill.amount} {borrowAsset}</span>
-                <span>{formatBps(fill.aprBps)} APR</span>
-                <span>{formatBps(fill.fundingShareBps)} share</span>
-              </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="rounded-lg bg-[#f7faf9] p-3 text-xs text-[#42524c]">No active supplier offers match this quote.</div>
+          )}
         </div>
       </div>
       <div className="mt-3 grid gap-2">
@@ -497,4 +515,8 @@ function safeNumber(value: number): number {
 
 function currency(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
+}
+
+function formatAssetAmount(amount: number, asset: Loan["borrowAsset"]): string {
+  return `${amount.toLocaleString("en-US", { maximumFractionDigits: asset === "BTC" ? 8 : 2 })} ${asset}`;
 }
