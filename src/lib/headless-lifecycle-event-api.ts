@@ -32,6 +32,7 @@ const eventKindSchema = z.enum([
 ]);
 
 const eventSourceSchema = z.enum(["borrower", "supplier", "arbiter", "operator", "watcher", "oracle", "system"]);
+const eventAssetSchema = z.enum(["USDC", "USDT", "BTC", "DCR"]);
 
 const eventSubmitSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120),
@@ -41,7 +42,7 @@ const eventSubmitSchema = z.object({
     status: z.string().optional(),
     detail: z.string().trim().min(1).max(1000),
     amount: z.coerce.number().nonnegative().optional(),
-    asset: z.string().optional(),
+    asset: eventAssetSchema.optional(),
     txid: z.string().trim().max(160).optional(),
     watcherEventId: z.string().trim().max(160).optional(),
     evidenceId: z.string().trim().max(160).optional(),
