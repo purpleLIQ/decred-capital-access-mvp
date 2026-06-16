@@ -1,4 +1,6 @@
 import { createBorrowerProtocolQuoteSummary, type BorrowerProtocolQuoteSummary } from "./borrower-protocol-quote";
+import type { EvidenceTimestampAnchor } from "./evidence-timestamps";
+import { emptyEvidenceTimestampAnchor } from "./evidence-timestamps";
 import type { Loan } from "./types";
 import { allocateRepaymentAcrossSupplierPositions, type SupplierRepaymentAllocationPreview } from "./supplier-repayment-allocation";
 import {
@@ -46,6 +48,7 @@ export interface FundingRouteStatus extends LifecycleStatusSection<FundingRouteK
 export interface EvidenceBundleStatus extends LifecycleStatusSection<"placeholder" | "prepared" | "committed"> {
   commitmentScheme: "sha256_placeholder" | "future_decred_blake256_or_merkle";
   bundleId: string;
+  timestamp: EvidenceTimestampAnchor;
 }
 
 export interface HeadlessLoanLifecycleRecord {
@@ -197,10 +200,11 @@ export function createHeadlessLoanLifecycleRecord(input: HeadlessLoanLifecycleIn
     },
     evidenceBundle: {
       status: "placeholder",
-      detail: "Evidence bundle placeholder exists for future audit and commitment work.",
+      detail: "Evidence bundle placeholder exists for future audit and commitment work. Timestamping anchors evidence hashes only and does not decide liquidation.",
       updatedAt: now,
       commitmentScheme: "sha256_placeholder",
       bundleId: `evidence-${publicLoanReference.toLowerCase()}`,
+      timestamp: emptyEvidenceTimestampAnchor,
     },
     fundingRoute,
   };
