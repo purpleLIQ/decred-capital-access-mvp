@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import { createHeadlessLoanLifecycleRecord, type HeadlessLoanLifecycleRecord, type OptionalBorrowerContact } from "../headless-loan-lifecycle";
 import type { HeadlessLifecycleStore, LifecycleStatusSectionKey } from "../headless-lifecycle-store";
 import type { LifecycleStatusSection } from "../headless-loan-lifecycle";
+import type { HeadlessLifecycleEventStore } from "../lifecycle-event-store";
+import type { HeadlessLifecycleEvent } from "../headless-lifecycle-events";
 import { applyHeadlessLifecycleEvent } from "../headless-lifecycle-transitions";
 import { createFixtureDecredWatcherEvent, type DecredExpectedOutputTerms } from "../decred-watcher-events";
 import { verifyDcrCollateralLock, verifyDcrPlatformFeeOutput } from "../decred-watcher-verifiers";
 import { createFixtureWatcherLifecycleEvent } from "../decred-watcher-fixtures";
+import { submitFixtureDecredWatcherScenario } from "../decred-watcher-api";
 
 class MemoryLifecycleStore implements HeadlessLifecycleStore {
   records: HeadlessLoanLifecycleRecord[] = [];
@@ -34,6 +37,23 @@ class MemoryLifecycleStore implements HeadlessLifecycleStore {
 
   async updateStatusSection(lookupCode: string, _section: LifecycleStatusSectionKey, _patch: Partial<LifecycleStatusSection<string>>) {
     return this.findByLookupCode(lookupCode);
+  }
+}
+
+class MemoryEventStore implements HeadlessLifecycleEventStore {
+  events: HeadlessLifecycleEvent[] = [];
+
+  async save(event: HeadlessLifecycleEvent) {
+    this.events = [event, ...this.events.filter((existing) => existing.id !== event.id)];
+    return event;
+  }
+
+  async listByLookupCode(lookupCode: string, limit = 20) {
+    return this.events.filter((event) => event.lookupCode.toUpperCase() === lookupCode.trim().toUpperCase()).slice(0, limit);
+  }
+
+  async listRecent(limit = 25) {
+    return this.events.slice(0, limit);
   }
 }
 
@@ -170,5 +190,25 @@ describe("Decred watcher scaffold", () => {
     expect(staleResult?.record.collateralLock.status).toBe("failed");
     expect(reorged.payload.collateralVerifierStatus).toBe("reorged");
     expect(reorgResult?.record.collateralLock.status).toBe("failed");
+  });
+
+  it("submits fixture watcher scenarios through the event API/store seam", async () => {
+    const { store, record } = seededStore();
+    const eventStore = new MemoryEventStore();
+
+    const submitted = await submitFixtureDecredWatcherScenario({
+      scenario: "valid_platform_fee_output_observed",
+      lookupCode: record.lookupCode,
+      expectedCollateral,
+      expectedPlatformFee,
+      observedAt: "2026-06-16T18:05:00.000Z",
+      stores: { lifecycleStore: store, eventStore },
+    });
+
+    expect(submitted.ok).toBe(true);
+    expect(submitted.data?.affectedSection).toBe("dcrPlatformFeeOutput");
+    expect(submitted.data?.record.dcrPlatformFeeOutput.status).toBe("detected");
+    expect(eventStore.events).toHaveLength(1);
+    expect(eventStore.events[0].payload.decredWatcherKind).toBe("platform_fee_output_confirmed");
   });
 });
