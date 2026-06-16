@@ -38,6 +38,7 @@ export function LifecycleEventHistory() {
 
 function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
   const isTimestampEvent = event.kind.includes("evidence_timestamp");
+  const isDecredWatcherEvent = Boolean(event.payload.decredWatcherKind);
 
   return (
     <article className="rounded-xl bg-[#091440] p-3 text-sm">
@@ -63,6 +64,22 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
           <Metric label="Provider" value={event.payload.timestampProvider ?? "none"} />
           <Metric label="Merkle root" value={event.payload.merkleRoot ?? "none"} />
           <Metric label="Chain time" value={event.payload.chainTimestamp ?? "none"} />
+        </div>
+      ) : null}
+      {isDecredWatcherEvent ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <Metric label="Watcher event" value={event.payload.watcherEventId ?? "none"} />
+          <Metric label="Network" value={event.payload.decredNetwork ?? "unknown"} />
+          <Metric label="Output" value={event.payload.outputIndex === undefined ? "none" : `${event.payload.outputIndex}`} />
+          <Metric label="Confirmations" value={event.payload.confirmations === undefined ? "0" : `${event.payload.confirmations}`} />
+          <Metric label="Amount DCR" value={event.payload.amount === undefined ? "none" : `${event.payload.amount}`} />
+          <Metric label="Expected DCR" value={event.payload.expectedAmountDcr === undefined ? "none" : `${event.payload.expectedAmountDcr}`} />
+          <Metric label="Block height" value={event.payload.blockHeight === undefined ? "none" : `${event.payload.blockHeight}`} />
+          <Metric label="Risk" value={event.payload.watcherRiskStatus ?? "normal"} />
+          <Metric label="Fee check" value={event.payload.platformFeeVerifierStatus ?? "n/a"} />
+          <Metric label="Collateral check" value={event.payload.collateralVerifierStatus ?? "n/a"} />
+          <Metric label="Block hash" value={event.payload.blockHash ?? "none"} />
+          <Metric label="Txid" value={event.payload.txid ?? "none"} />
         </div>
       ) : null}
       <p className="mt-3 text-white/70">{event.payload.detail}</p>
