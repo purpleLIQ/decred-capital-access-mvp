@@ -58,6 +58,18 @@ export interface HeadlessLifecycleEventPayload {
   verificationStatus?: EvidenceTimestampVerificationStatus;
   publicSummaryId?: string;
   timestampAuditNote?: string;
+  decredWatcherKind?: string;
+  decredNetwork?: string;
+  outputIndex?: number;
+  expectedAmountDcr?: number;
+  expectedAddressOrScript?: string;
+  observedAddressOrScript?: string;
+  confirmations?: number;
+  blockHeight?: number;
+  blockHash?: string;
+  watcherRiskStatus?: string;
+  collateralVerifierStatus?: string;
+  platformFeeVerifierStatus?: string;
 }
 
 export interface HeadlessLifecycleEvent {

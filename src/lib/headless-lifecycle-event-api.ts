@@ -41,6 +41,10 @@ const eventAssetSchema = z.enum(["USDC", "USDT", "BTC", "DCR"]);
 const digestAlgorithmSchema = z.enum(["sha256_placeholder", "blake256", "merkle_root"]);
 const timestampProviderSchema = z.enum(["dcrtime", "decred_wallet_timestamp", "manual", "none"]);
 const timestampVerificationSchema = z.enum(["not_checked", "pending", "verified", "failed"]);
+const decredNetworkSchema = z.enum(["simnet", "testnet", "mainnet", "unknown"]);
+const watcherRiskSchema = z.enum(["normal", "stale", "reorg_risk", "reorged"]);
+const collateralVerifierSchema = z.enum(["observed_unconfirmed", "confirmed", "amount_mismatch", "destination_mismatch", "stale", "reorged", "missing"]);
+const platformFeeVerifierSchema = z.enum(["valid", "missing", "amount_mismatch", "destination_mismatch", "unconfirmed", "stale", "reorged"]);
 
 const eventSubmitSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120),
@@ -68,6 +72,18 @@ const eventSubmitSchema = z.object({
     verificationStatus: timestampVerificationSchema.optional(),
     publicSummaryId: z.string().trim().max(160).optional(),
     timestampAuditNote: z.string().trim().max(1000).optional(),
+    decredWatcherKind: z.string().trim().max(120).optional(),
+    decredNetwork: decredNetworkSchema.optional(),
+    outputIndex: z.coerce.number().int().nonnegative().optional(),
+    expectedAmountDcr: z.coerce.number().nonnegative().optional(),
+    expectedAddressOrScript: z.string().trim().max(240).optional(),
+    observedAddressOrScript: z.string().trim().max(240).optional(),
+    confirmations: z.coerce.number().int().nonnegative().optional(),
+    blockHeight: z.coerce.number().int().nonnegative().optional(),
+    blockHash: z.string().trim().max(160).optional(),
+    watcherRiskStatus: watcherRiskSchema.optional(),
+    collateralVerifierStatus: collateralVerifierSchema.optional(),
+    platformFeeVerifierStatus: platformFeeVerifierSchema.optional(),
   }),
   observedAt: z.string().datetime().optional(),
   createdAt: z.string().datetime().optional(),

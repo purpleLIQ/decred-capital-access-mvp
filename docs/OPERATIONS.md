@@ -100,6 +100,40 @@ Timestamp provider failures should be retryable operational events. They should 
 
 Never publish borrower contact, support notes, internal comments, or full raw evidence in public timestamp summaries.
 
+## Decred Watcher Operations Scaffold
+
+Current Decred watcher support is fixture/manual scaffolding only. It provides typed events and pure verification helpers for collateral and platform-fee observation, but it does not connect to a live Decred node.
+
+Ops should expect watcher-shaped events to carry:
+
+- watcher event id,
+- network,
+- txid,
+- output index,
+- observed DCR amount,
+- expected DCR amount,
+- expected address or script descriptor,
+- observed address or script descriptor,
+- confirmations,
+- block height/hash,
+- stale/reorg status,
+- collateral verifier result,
+- platform fee verifier result,
+- audit note.
+
+Fixture watcher events feed the same lifecycle event path as future real watcher integrations:
+
+```text
+Decred watcher event
+-> pure verifier result
+-> lifecycle event adapter
+-> stored lifecycle record update
+-> ops event history
+-> borrower-safe status
+```
+
+Loan activation remains a future production behavior. The expected future rule is that activation cannot proceed if the required platform-fee output is missing, has the wrong amount, or uses the wrong destination.
+
 ## Transaction Review Operations
 
 The console can generate transaction reviews for collateral deposit, payout, release, and liquidation. Reviews are operational evidence and readiness checks, not signed transactions.
