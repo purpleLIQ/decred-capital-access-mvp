@@ -37,6 +37,8 @@ export function LifecycleEventHistory() {
 }
 
 function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
+  const isTimestampEvent = event.kind.includes("evidence_timestamp");
+
   return (
     <article className="rounded-xl bg-[#091440] p-3 text-sm">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -55,7 +57,16 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
         <Metric label="External ref" value={event.externalReference ?? "none"} />
         <Metric label="Source" value={event.source} />
       </div>
+      {isTimestampEvent ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <Metric label="Evidence hash" value={event.payload.evidenceHash ?? "none"} />
+          <Metric label="Provider" value={event.payload.timestampProvider ?? "none"} />
+          <Metric label="Merkle root" value={event.payload.merkleRoot ?? "none"} />
+          <Metric label="Chain time" value={event.payload.chainTimestamp ?? "none"} />
+        </div>
+      ) : null}
       <p className="mt-3 text-white/70">{event.payload.detail}</p>
+      {event.payload.timestampAuditNote ? <p className="mt-2 text-xs text-[#70cbff]">{event.payload.timestampAuditNote}</p> : null}
       <p className="mt-2 text-xs text-[#2ED6A1]">{event.safetyAuditNote}</p>
     </article>
   );

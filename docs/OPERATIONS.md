@@ -72,9 +72,33 @@ The roadmap now targets:
 - arbiter intervention before fallback liquidation,
 - automatic fallback liquidation after simnet proof,
 - privacy-first evidence hash commitments on Decred,
+- evidence timestamp anchors through dcrtime / Timestamply-style adapters,
 - optional future public/Treasury funding requests for loans over $10,000 equivalent.
 
 These are target architecture items, not current production behavior.
+
+## Evidence Timestamp Operations Target
+
+Future evidence timestamp operations should track:
+
+- evidence hash,
+- digest algorithm,
+- provider (`dcrtime`, `decred_wallet_timestamp`, `manual`, or `none`),
+- timestamp submission status,
+- anchor status,
+- verification status,
+- txid,
+- Merkle root,
+- Merkle path placeholder,
+- chain timestamp,
+- public summary id,
+- audit-safe note.
+
+Timestamping anchors evidence hashes only. It does not decide borrower default, oracle correctness, watcher validity, policy correctness, arbiter correctness, or release/claim eligibility.
+
+Timestamp provider failures should be retryable operational events. They should not block normal borrower quote, lookup, optional contact, or repayment flows.
+
+Never publish borrower contact, support notes, internal comments, or full raw evidence in public timestamp summaries.
 
 ## Transaction Review Operations
 
@@ -225,7 +249,7 @@ oracle detects liquidation eligibility
 
 Founder/operator manual liquidation review is not the target architecture.
 
-Automatic fallback liquidation must remain disabled until oracle, policy, arbiter, watcher, transaction-template, evidence, and simnet proof gates pass.
+Automatic fallback liquidation must remain disabled until oracle, policy, arbiter, watcher, transaction-template, evidence, timestamp/commitment, and simnet proof gates pass.
 
 ## Evidence Commitment Operations Target
 
@@ -235,10 +259,11 @@ Future evidence operations should track:
 - privacy-safe public summary,
 - evidence hash,
 - Decred commitment transaction,
-- commitment lookup,
+- Decred timestamp anchor,
+- commitment/timestamp lookup,
 - evidence verification status.
 
-Full liquidation/loan evidence should not be stored on-chain. Decred should store compact commitments only.
+Full liquidation/loan evidence should not be stored on-chain. Decred should store compact commitments or timestamp anchors only.
 
 ## Scope Drift Checks
 

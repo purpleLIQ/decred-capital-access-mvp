@@ -1,3 +1,4 @@
+import type { EvidenceDigestAlgorithm, EvidenceTimestampProvider, EvidenceTimestampVerificationStatus } from "./evidence-timestamps";
 import type { HeadlessLoanLifecycleRecord } from "./headless-loan-lifecycle";
 
 export type HeadlessLifecycleEventKind =
@@ -14,7 +15,12 @@ export type HeadlessLifecycleEventKind =
   | "arbiter_review_requested"
   | "arbiter_review_resolved"
   | "evidence_bundle_prepared"
-  | "evidence_commitment_observed";
+  | "evidence_commitment_observed"
+  | "evidence_timestamp_prepared"
+  | "evidence_timestamp_submitted"
+  | "evidence_timestamp_anchored"
+  | "evidence_timestamp_verified"
+  | "evidence_timestamp_failed";
 
 export type HeadlessLifecycleEventSource = "borrower" | "supplier" | "arbiter" | "operator" | "watcher" | "oracle" | "system";
 
@@ -41,6 +47,17 @@ export interface HeadlessLifecycleEventPayload {
   reviewId?: string;
   health?: string;
   repaymentAmount?: number;
+  evidenceHash?: string;
+  digestAlgorithm?: EvidenceDigestAlgorithm;
+  timestampProvider?: EvidenceTimestampProvider;
+  submittedAt?: string;
+  anchoredAt?: string;
+  chainTimestamp?: string;
+  merkleRoot?: string;
+  merklePathPlaceholder?: string;
+  verificationStatus?: EvidenceTimestampVerificationStatus;
+  publicSummaryId?: string;
+  timestampAuditNote?: string;
 }
 
 export interface HeadlessLifecycleEvent {
@@ -83,7 +100,7 @@ export function createHeadlessLifecycleEvent(input: {
     observedAt,
     createdAt,
     externalReference: input.externalReference ?? input.payload.txid ?? input.payload.watcherEventId ?? input.payload.evidenceId ?? input.payload.reviewId,
-    safetyAuditNote: input.safetyAuditNote ?? "Manual lifecycle event accepted through the safe transition layer. No signing, broadcast, funds movement, or liquidation execution occurred.",
+    safetyAuditNote: input.safetyAuditNote ?? "Manual lifecycle event accepted through the safe transition layer. No keys, signing, broadcast, or funds movement occurred.",
   };
 }
 
@@ -112,6 +129,11 @@ export function getAffectedLifecycleSection(kind: HeadlessLifecycleEventKind): A
       return "arbiterReview";
     case "evidence_bundle_prepared":
     case "evidence_commitment_observed":
+    case "evidence_timestamp_prepared":
+    case "evidence_timestamp_submitted":
+    case "evidence_timestamp_anchored":
+    case "evidence_timestamp_verified":
+    case "evidence_timestamp_failed":
       return "evidenceBundle";
   }
 }

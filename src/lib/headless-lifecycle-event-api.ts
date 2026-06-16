@@ -29,10 +29,18 @@ const eventKindSchema = z.enum([
   "arbiter_review_resolved",
   "evidence_bundle_prepared",
   "evidence_commitment_observed",
+  "evidence_timestamp_prepared",
+  "evidence_timestamp_submitted",
+  "evidence_timestamp_anchored",
+  "evidence_timestamp_verified",
+  "evidence_timestamp_failed",
 ]);
 
 const eventSourceSchema = z.enum(["borrower", "supplier", "arbiter", "operator", "watcher", "oracle", "system"]);
 const eventAssetSchema = z.enum(["USDC", "USDT", "BTC", "DCR"]);
+const digestAlgorithmSchema = z.enum(["sha256_placeholder", "blake256", "merkle_root"]);
+const timestampProviderSchema = z.enum(["dcrtime", "decred_wallet_timestamp", "manual", "none"]);
+const timestampVerificationSchema = z.enum(["not_checked", "pending", "verified", "failed"]);
 
 const eventSubmitSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120),
@@ -49,6 +57,17 @@ const eventSubmitSchema = z.object({
     reviewId: z.string().trim().max(160).optional(),
     health: z.string().trim().max(80).optional(),
     repaymentAmount: z.coerce.number().nonnegative().optional(),
+    evidenceHash: z.string().trim().max(160).optional(),
+    digestAlgorithm: digestAlgorithmSchema.optional(),
+    timestampProvider: timestampProviderSchema.optional(),
+    submittedAt: z.string().datetime().optional(),
+    anchoredAt: z.string().datetime().optional(),
+    chainTimestamp: z.string().datetime().optional(),
+    merkleRoot: z.string().trim().max(160).optional(),
+    merklePathPlaceholder: z.string().trim().max(1000).optional(),
+    verificationStatus: timestampVerificationSchema.optional(),
+    publicSummaryId: z.string().trim().max(160).optional(),
+    timestampAuditNote: z.string().trim().max(1000).optional(),
   }),
   observedAt: z.string().datetime().optional(),
   createdAt: z.string().datetime().optional(),

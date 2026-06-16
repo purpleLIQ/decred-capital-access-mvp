@@ -130,6 +130,6 @@ describe("headless lifecycle events", () => {
     expect(submitted.data?.record.supplierDisbursement.status).toBe("disbursed");
     expect(submitted.data?.record.lifecycleStatus).toBe("repayment_pending");
     expect(listed.data?.events).toHaveLength(1);
-    expect(listed.data?.events[0].safetyAuditNote).toContain("No signing");
+    expect(listed.data?.events[0].safetyAuditNote).toContain("No keys");
   });
 });

@@ -17,6 +17,16 @@ oracle and policy engine detect risk
 
 Current implementation still does not execute liquidation.
 
+## Evidence Timestamping Role
+
+Decred timestamping, through a future dcrtime or Timestamply-style adapter, is useful for anchoring evidence bundle hashes during arbiter review. It is an auditability and transparency tool.
+
+Timestamp evidence, not decisions.
+
+A timestamp can show that a specific digest existed by a Decred chain timestamp. It does not prove oracle correctness, watcher correctness, borrower default, policy correctness, or arbiter correctness. Arbiters must still review the underlying evidence, policy state, watcher confirmations, and borrower/supplier context.
+
+Only compact timestamp metadata should be public: evidence hash, digest algorithm, provider, txid, Merkle root, chain timestamp, verification status, and public summary id. Full evidence, borrower contact, support notes, and internal comments must stay off-chain and private.
+
 ## Oracle Policy
 
 Oracle inputs should include:
@@ -163,6 +173,7 @@ Automatic fallback can be considered only after:
 - arbiter window completion or valid bypass condition,
 - verified transaction template,
 - evidence bundle,
+- evidence commitment or timestamp anchor,
 - simnet proof.
 
 Block automatic liquidation when:
@@ -176,6 +187,8 @@ Block automatic liquidation when:
 - transaction template does not match policy,
 - evidence hash is missing,
 - required signer path is not proven.
+
+A timestamp alone must never satisfy the evidence or policy gate. It only anchors an evidence digest.
 
 ## Future Automatic Authority Model
 

@@ -1,4 +1,6 @@
 import { allocateRepaymentAcrossSupplierPositions } from "./supplier-repayment-allocation";
+import type { EvidenceTimestampStatus } from "./evidence-timestamps";
+import { updateEvidenceTimestampAnchor } from "./evidence-timestamps";
 import type { HeadlessLoanLifecycleRecord } from "./headless-loan-lifecycle";
 import type { HeadlessLifecycleStore } from "./headless-lifecycle-store";
 import { headlessLifecycleStore } from "./headless-lifecycle-store";
@@ -201,7 +203,53 @@ function transitionRecord(record: HeadlessLoanLifecycleRecord, event: HeadlessLi
           bundleId: event.payload.evidenceId ?? record.evidenceBundle.bundleId,
         },
       }, updatedAt);
+
+    case "evidence_timestamp_prepared":
+      return updateTimestamp(record, event, "prepared", "prepared");
+    case "evidence_timestamp_submitted":
+      return updateTimestamp(record, event, "submitted", record.evidenceBundle.status);
+    case "evidence_timestamp_anchored":
+      return updateTimestamp(record, event, "anchored", "committed");
+    case "evidence_timestamp_verified":
+      return updateTimestamp(record, event, "verified", "committed");
+    case "evidence_timestamp_failed":
+      return updateTimestamp(record, event, "failed", record.evidenceBundle.status);
   }
+}
+
+function updateTimestamp(
+  record: HeadlessLoanLifecycleRecord,
+  event: HeadlessLifecycleEvent,
+  timestampStatus: EvidenceTimestampStatus,
+  bundleStatus: HeadlessLoanLifecycleRecord["evidenceBundle"]["status"],
+): HeadlessLoanLifecycleRecord {
+  const updatedAt = event.observedAt;
+  const timestamp = updateEvidenceTimestampAnchor(record.evidenceBundle.timestamp, {
+    evidenceHash: event.payload.evidenceHash,
+    digestAlgorithm: event.payload.digestAlgorithm,
+    provider: event.payload.timestampProvider,
+    submittedAt: event.payload.submittedAt,
+    anchoredAt: event.payload.anchoredAt,
+    chainTimestamp: event.payload.chainTimestamp,
+    txid: event.payload.txid,
+    merkleRoot: event.payload.merkleRoot,
+    merklePathPlaceholder: event.payload.merklePathPlaceholder,
+    verificationStatus: event.payload.verificationStatus,
+    publicSummaryId: event.payload.publicSummaryId,
+    auditNote: event.payload.timestampAuditNote ?? "Timestamp event stores only audit-safe hash metadata. Full evidence remains off-chain.",
+  }, timestampStatus);
+
+  return touch({
+    ...record,
+    evidenceBundle: {
+      ...record.evidenceBundle,
+      status: bundleStatus,
+      detail: event.payload.detail,
+      updatedAt,
+      bundleId: event.payload.evidenceId ?? record.evidenceBundle.bundleId,
+      timestamp,
+    },
+  }, updatedAt);
 }
 
 function normalizeLiquidationHealth(status?: string): HeadlessLoanLifecycleRecord["liquidationHealth"]["status"] {

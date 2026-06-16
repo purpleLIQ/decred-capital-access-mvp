@@ -242,6 +242,7 @@ function LookupResult({ record }: { record: HeadlessLoanLifecycleRecord }) {
         <SummaryRow label="Repayment detection" value={record.repaymentDetection.status} />
         <SummaryRow label="Arbiter review" value={record.arbiterReview.status} />
         <SummaryRow label="Evidence" value={record.evidenceBundle.status} />
+        <SummaryRow label="Evidence timestamp" value={record.evidenceBundle.timestamp.status} />
         <SummaryRow label="Funding route" value={record.fundingRoute.status} />
       </div>
     </div>
