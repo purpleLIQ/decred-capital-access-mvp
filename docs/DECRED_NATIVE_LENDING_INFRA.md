@@ -13,7 +13,7 @@ This document defines the target infrastructure for native DCR collateral lendin
 
 ## Current State
 
-The current app can model transaction reviews, signing sessions, fixture signature verification, and broadcast reviews. It does not prove real Decred signatures, real escrow spends, real liquidation execution, or real broadcast paths.
+The current app can model transaction reviews, signing sessions, fixture signature verification, broadcast reviews, headless lifecycle records, lifecycle events, evidence timestamp anchors, and fixture/manual Decred watcher-shaped events. It does not prove real Decred signatures, real escrow spends, real liquidation execution, live watcher connectivity, or real broadcast paths.
 
 ## Required Infrastructure
 
@@ -93,6 +93,25 @@ The Decred watcher must track:
 - evidence commitment outputs,
 - stale watcher state,
 - reorg-sensitive events.
+
+## Current Watcher Scaffold
+
+The current watcher work is fixture/manual scaffolding only. It adds production-shaped event and verifier models for:
+
+- collateral funding seen,
+- collateral confirmed,
+- collateral reorged,
+- collateral spent,
+- platform fee output seen,
+- platform fee output confirmed,
+- platform fee output missing,
+- platform fee output mismatch,
+- watcher stale,
+- watcher recovered.
+
+Pure helpers compare expected and observed DCR collateral or platform-fee outputs. Results are mapped into the headless lifecycle event path so stored lifecycle records can update collateral and fee-output sections.
+
+This scaffold does not call a live Decred node. It does not sign, broadcast, move funds, or prove real on-chain collateral. Future simnet, testnet, and mainnet watchers should replace the fixture event source behind the same typed event and verifier boundary.
 
 ## Safety Rules
 
