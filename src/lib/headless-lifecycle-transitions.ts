@@ -42,30 +42,36 @@ function transitionRecord(record: HeadlessLoanLifecycleRecord, event: HeadlessLi
     case "borrower_contact_updated":
       return touch(record, updatedAt);
 
-    case "collateral_lock_observed":
+    case "collateral_lock_observed": {
+      const status = collateralStatusFromWatcher(event.payload.collateralVerifierStatus);
+      const isLocked = status === "locked";
       return touch({
         ...record,
-        lifecycleStatus: "awaiting_supplier_disbursement",
+        lifecycleStatus: isLocked ? "awaiting_supplier_disbursement" : record.lifecycleStatus,
         collateralLock: {
           ...record.collateralLock,
-          status: "locked",
+          status,
           detail: `${detail}${externalReference}`,
           updatedAt,
         },
-        nextBorrowerAction: "Collateral has been observed. Wait for supplier disbursement confirmation.",
-        nextSupplierOperatorAction: "Collateral is locked. Review supplier disbursement readiness.",
+        nextBorrowerAction: isLocked ? "Collateral has been observed. Wait for supplier disbursement confirmation." : collateralBorrowerMessage(status),
+        nextSupplierOperatorAction: isLocked ? "Collateral is locked. Review supplier disbursement readiness." : "Review Decred watcher collateral status before proceeding.",
       }, updatedAt);
+    }
 
-    case "dcr_platform_fee_output_observed":
+    case "dcr_platform_fee_output_observed": {
+      const status = feeStatusFromWatcher(event.payload.platformFeeVerifierStatus);
       return touch({
         ...record,
         dcrPlatformFeeOutput: {
           ...record.dcrPlatformFeeOutput,
-          status: "detected",
+          status,
           detail: `${detail}${externalReference}`,
           updatedAt,
         },
+        nextSupplierOperatorAction: status === "detected" ? record.nextSupplierOperatorAction : "Review DCR platform fee output before proceeding.",
       }, updatedAt);
+    }
 
     case "supplier_disbursement_ready":
       return touch({
@@ -250,6 +256,25 @@ function updateTimestamp(
       timestamp,
     },
   }, updatedAt);
+}
+
+function feeStatusFromWatcher(status?: string): HeadlessLoanLifecycleRecord["dcrPlatformFeeOutput"]["status"] {
+  if (status === "valid") return "detected";
+  if (status === "missing" || status === "amount_mismatch" || status === "destination_mismatch" || status === "unconfirmed" || status === "stale" || status === "reorged") return "not_started";
+  return "detected";
+}
+
+function collateralStatusFromWatcher(status?: string): HeadlessLoanLifecycleRecord["collateralLock"]["status"] {
+  if (status === "confirmed") return "locked";
+  if (status === "observed_unconfirmed") return "awaiting_borrower";
+  if (status === "amount_mismatch" || status === "destination_mismatch" || status === "stale" || status === "reorged" || status === "missing") return "failed";
+  return "locked";
+}
+
+function collateralBorrowerMessage(status: HeadlessLoanLifecycleRecord["collateralLock"]["status"]): string {
+  if (status === "awaiting_borrower") return "Collateral is observed and waiting for confirmations.";
+  if (status === "failed") return "Collateral issue detected. Wait for operator review before continuing.";
+  return "Waiting for collateral.";
 }
 
 function normalizeLiquidationHealth(status?: string): HeadlessLoanLifecycleRecord["liquidationHealth"]["status"] {
