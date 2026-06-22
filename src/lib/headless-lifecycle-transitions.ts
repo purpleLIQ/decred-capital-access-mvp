@@ -85,43 +85,59 @@ function transitionRecord(record: HeadlessLoanLifecycleRecord, event: HeadlessLi
         nextSupplierOperatorAction: "Supplier disbursement is ready for reviewed wallet execution outside the app.",
       }, updatedAt);
 
-    case "supplier_disbursement_observed":
+    case "supplier_disbursement_observed": {
+      const isValid = event.payload.supplierDisbursementVerifierStatus === undefined || event.payload.supplierDisbursementVerifierStatus === "valid";
       return touch({
         ...record,
-        lifecycleStatus: "repayment_pending",
+        lifecycleStatus: isValid ? "repayment_pending" : record.lifecycleStatus,
         supplierDisbursement: {
           ...record.supplierDisbursement,
-          status: "disbursed",
+          status: isValid ? "disbursed" : record.supplierDisbursement.status,
           detail: `${detail}${externalReference}`,
           updatedAt,
         },
-        nextBorrowerAction: "Supplier disbursement has been observed. Track repayment deadline and prepare repayment.",
-        nextSupplierOperatorAction: "Disbursement observed. Monitor repayment and collateral health.",
+        nextBorrowerAction: isValid ? "Supplier disbursement has been observed. Track repayment deadline and prepare repayment." : "Watcher issue detected for supplier disbursement. Wait for confirmation or operator review.",
+        nextSupplierOperatorAction: isValid ? "Disbursement observed. Monitor repayment and collateral health." : "Review borrow-asset watcher disbursement status before proceeding.",
       }, updatedAt);
+    }
 
     case "repayment_observed": {
-      const repaymentAmount = event.payload.repaymentAmount ?? event.payload.amount ?? record.repaymentAllocationPreview.repaymentAmount;
+      const isValidRepayment = event.payload.repaymentVerifierStatus === undefined || event.payload.repaymentVerifierStatus === "valid_full_repayment" || event.payload.repaymentVerifierStatus === "valid_partial_repayment";
+      const repaymentAmount = isValidRepayment ? event.payload.repaymentAmount ?? event.payload.amount ?? record.repaymentAllocationPreview.repaymentAmount : record.repaymentAllocationPreview.repaymentAmount;
       const repaymentAllocationPreview = allocateRepaymentAcrossSupplierPositions({
         positions: record.supplierPositions,
         repaymentAmount,
       });
+      const repaymentStatus = isValidRepayment
+        ? repaymentAllocationPreview.status === "repaid"
+          ? "detected"
+          : "partial"
+        : record.repaymentDetection.status;
       return touch({
         ...record,
         repaymentAllocationPreview,
         repaymentDetection: {
           ...record.repaymentDetection,
-          status: repaymentAllocationPreview.status === "repaid" ? "detected" : "partial",
+          status: repaymentStatus,
           detail: `${detail}${externalReference}`,
           updatedAt,
         },
         collateralRelease: {
           ...record.collateralRelease,
-          status: repaymentAllocationPreview.status === "repaid" ? "ready" : record.collateralRelease.status,
-          detail: repaymentAllocationPreview.status === "repaid" ? "Repayment observed; collateral release can move to reviewed release workflow." : record.collateralRelease.detail,
+          status: isValidRepayment && repaymentAllocationPreview.status === "repaid" ? "ready" : record.collateralRelease.status,
+          detail: isValidRepayment && repaymentAllocationPreview.status === "repaid" ? "Repayment observed; collateral release can move to reviewed release workflow." : record.collateralRelease.detail,
           updatedAt,
         },
-        nextBorrowerAction: repaymentAllocationPreview.status === "repaid" ? "Repayment observed. Wait for collateral release review." : "Partial repayment observed. Continue repayment until the remaining due is cleared.",
-        nextSupplierOperatorAction: repaymentAllocationPreview.status === "repaid" ? "Review collateral release path." : "Continue monitoring repayment outputs.",
+        nextBorrowerAction: isValidRepayment
+          ? repaymentAllocationPreview.status === "repaid"
+            ? "Repayment observed. Wait for collateral release review."
+            : "Partial repayment observed. Continue repayment until the remaining due is cleared."
+          : "Watcher issue detected for repayment. Wait for confirmation or operator review.",
+        nextSupplierOperatorAction: isValidRepayment
+          ? repaymentAllocationPreview.status === "repaid"
+            ? "Review collateral release path."
+            : "Continue monitoring repayment outputs."
+          : "Review borrow-asset watcher repayment status before proceeding.",
       }, updatedAt);
     }
 
