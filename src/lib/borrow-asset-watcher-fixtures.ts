@@ -42,7 +42,7 @@ function createFixtureEvent(
   expectedRepayment: BorrowAssetExpectedSettlementTerms,
   observedAt?: string,
 ): BorrowAssetWatcherEvent {
-  const supplierPositionId = expectedDisbursement.supplierPositionId ?? lifecycle.supplierPositions[0]?.positionId ?? "supplier-position-fixture";
+  const supplierPositionId = expectedDisbursement.supplierPositionId ?? lifecycle.supplierPositions[0]?.id ?? "supplier-position-fixture";
   const supplierFillId = expectedDisbursement.supplierFillId ?? lifecycle.acceptedSupplierFills[0]?.id ?? "supplier-fill-fixture";
 
   switch (scenario) {
