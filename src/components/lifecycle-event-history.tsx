@@ -39,6 +39,7 @@ export function LifecycleEventHistory() {
 function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
   const isTimestampEvent = event.kind.includes("evidence_timestamp");
   const isDecredWatcherEvent = Boolean(event.payload.decredWatcherKind);
+  const isBorrowAssetWatcherEvent = Boolean(event.payload.borrowAssetWatcherKind);
 
   return (
     <article className="rounded-xl bg-[#091440] p-3 text-sm">
@@ -80,6 +81,26 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
           <Metric label="Collateral check" value={event.payload.collateralVerifierStatus ?? "n/a"} />
           <Metric label="Block hash" value={event.payload.blockHash ?? "none"} />
           <Metric label="Txid" value={event.payload.txid ?? "none"} />
+        </div>
+      ) : null}
+      {isBorrowAssetWatcherEvent ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <Metric label="Watcher event" value={event.payload.watcherEventId ?? "none"} />
+          <Metric label="Asset" value={event.payload.asset ?? "none"} />
+          <Metric label="Rail" value={event.payload.borrowAssetRailNetwork ?? "unknown"} />
+          <Metric label="Position/fill" value={event.payload.supplierPositionId ?? event.payload.supplierFillId ?? "n/a"} />
+          <Metric label="Txid/hash" value={event.payload.txid ?? "none"} />
+          <Metric label="Output/log" value={event.payload.outputIndex === undefined ? event.payload.logIndex === undefined ? "none" : `${event.payload.logIndex}` : `${event.payload.outputIndex}`} />
+          <Metric label="Token" value={event.payload.tokenContract ?? "native"} />
+          <Metric label="From" value={event.payload.fromAddress ?? "none"} />
+          <Metric label="To" value={event.payload.toAddress ?? "none"} />
+          <Metric label="Observed" value={event.payload.amount === undefined ? "none" : `${event.payload.amount}`} />
+          <Metric label="Expected" value={event.payload.expectedAmount === undefined ? "none" : `${event.payload.expectedAmount}`} />
+          <Metric label="Confirm/finality" value={`${event.payload.confirmations ?? 0}/${event.payload.finalityDepth ?? 0}`} />
+          <Metric label="Block" value={event.payload.blockHeight === undefined ? "none" : `${event.payload.blockHeight}`} />
+          <Metric label="Risk" value={event.payload.watcherRiskStatus ?? "normal"} />
+          <Metric label="Disbursement check" value={event.payload.supplierDisbursementVerifierStatus ?? "n/a"} />
+          <Metric label="Repayment check" value={event.payload.repaymentVerifierStatus ?? "n/a"} />
         </div>
       ) : null}
       <p className="mt-3 text-white/70">{event.payload.detail}</p>

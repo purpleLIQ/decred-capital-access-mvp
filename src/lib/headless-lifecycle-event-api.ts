@@ -42,9 +42,12 @@ const digestAlgorithmSchema = z.enum(["sha256_placeholder", "blake256", "merkle_
 const timestampProviderSchema = z.enum(["dcrtime", "decred_wallet_timestamp", "manual", "none"]);
 const timestampVerificationSchema = z.enum(["not_checked", "pending", "verified", "failed"]);
 const decredNetworkSchema = z.enum(["simnet", "testnet", "mainnet", "unknown"]);
-const watcherRiskSchema = z.enum(["normal", "stale", "reorg_risk", "reorged"]);
+const watcherRiskSchema = z.enum(["normal", "stale", "reorg_risk", "reorged", "unfinalized"]);
 const collateralVerifierSchema = z.enum(["observed_unconfirmed", "confirmed", "amount_mismatch", "destination_mismatch", "stale", "reorged", "missing"]);
 const platformFeeVerifierSchema = z.enum(["valid", "missing", "amount_mismatch", "destination_mismatch", "unconfirmed", "stale", "reorged"]);
+const borrowAssetRailSchema = z.enum(["bitcoin_simnet", "bitcoin_testnet", "bitcoin_mainnet", "evm_local", "evm_testnet", "evm_mainnet", "unknown"]);
+const supplierDisbursementVerifierSchema = z.enum(["valid", "missing", "amount_mismatch", "destination_mismatch", "asset_mismatch", "token_contract_mismatch", "unconfirmed", "stale", "reorged"]);
+const repaymentVerifierSchema = z.enum(["valid_full_repayment", "valid_partial_repayment", "missing", "amount_mismatch", "destination_mismatch", "asset_mismatch", "token_contract_mismatch", "unconfirmed", "stale", "reorged"]);
 
 const eventSubmitSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120),
@@ -84,6 +87,18 @@ const eventSubmitSchema = z.object({
     watcherRiskStatus: watcherRiskSchema.optional(),
     collateralVerifierStatus: collateralVerifierSchema.optional(),
     platformFeeVerifierStatus: platformFeeVerifierSchema.optional(),
+    borrowAssetWatcherKind: z.string().trim().max(120).optional(),
+    borrowAssetRailNetwork: borrowAssetRailSchema.optional(),
+    supplierPositionId: z.string().trim().max(160).optional(),
+    supplierFillId: z.string().trim().max(160).optional(),
+    logIndex: z.coerce.number().int().nonnegative().optional(),
+    tokenContract: z.string().trim().max(160).optional(),
+    fromAddress: z.string().trim().max(200).optional(),
+    toAddress: z.string().trim().max(200).optional(),
+    expectedAmount: z.coerce.number().nonnegative().optional(),
+    finalityDepth: z.coerce.number().int().nonnegative().optional(),
+    supplierDisbursementVerifierStatus: supplierDisbursementVerifierSchema.optional(),
+    repaymentVerifierStatus: repaymentVerifierSchema.optional(),
   }),
   observedAt: z.string().datetime().optional(),
   createdAt: z.string().datetime().optional(),
