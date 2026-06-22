@@ -110,8 +110,8 @@ export function deriveArbiterReviewCases(input: ArbiterCaseDerivationInput): Arb
     cases.push(createCase({ record, events, now, caseType: "liquidation_health_review", priority: record.liquidationHealth.status === "liquidation_review" ? "urgent" : "high", reason: "Loan health requires arbiter review.", borrowerSafeSummary: "Loan health review is open.", arbiterInternalSummary: "Liquidation health moved into warning or review state. This is review-only and not execution." }));
   }
 
-  if (record.evidenceBundle.timestamp.status === "failed" || record.evidenceBundle.status === "placeholder") {
-    cases.push(createCase({ record, events, now, caseType: "evidence_incomplete", priority: "medium", reason: "Evidence or timestamp state requires review.", borrowerSafeSummary: "Evidence review is in progress.", arbiterInternalSummary: "Evidence is incomplete or timestamp anchoring failed and may need retry or more evidence." }));
+  if (record.evidenceBundle.timestamp.status === "failed") {
+    cases.push(createCase({ record, events, now, caseType: "evidence_incomplete", priority: "medium", reason: "Evidence timestamp state requires review.", borrowerSafeSummary: "Evidence review is in progress.", arbiterInternalSummary: "Evidence timestamp anchoring failed and may need retry or more evidence." }));
   }
 
   if (hasWatcherRisk(events, ["stale", "reorged", "reorg_risk", "unfinalized"])) {
@@ -155,7 +155,7 @@ export function createAllowedArbiterActions(input: {
     base("pause_liquidation", "Pause review path", "Pause any later reviewed liquidation path while evidence is incomplete.", open && (input.caseType === "liquidation_health_review" || input.caseType === "watcher_stale_or_reorged")),
     base("mark_dispute", "Mark dispute", "Mark the case as disputed for further review.", open),
     base("resolve_case", "Resolve case", "Close the review case after evidence has been reviewed.", open && input.evidenceReady, input.evidenceReady ? undefined : "Evidence is not complete enough to resolve."),
-    base("confirm_liquidation_review", "Confirm liquidation review", "Record that this case may move to a later separately gated liquidation transaction review.", open && input.liquidationReview && input.evidenceReady, input.liquidationReview ? (input.evidenceReady ? undefined : "Evidence must be complete before confirming review.") : "Case is not a liquidation-health review."),
+    base("confirm_liquidation_review", "Confirm liquidation review", "Record that this case may move to a later separately gated transaction review.", open && input.liquidationReview && input.evidenceReady, input.liquidationReview ? (input.evidenceReady ? undefined : "Evidence must be complete before confirming review.") : "Case is not a loan-health review."),
   ];
 }
 
