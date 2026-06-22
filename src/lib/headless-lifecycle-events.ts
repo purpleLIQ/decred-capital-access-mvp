@@ -70,6 +70,18 @@ export interface HeadlessLifecycleEventPayload {
   watcherRiskStatus?: string;
   collateralVerifierStatus?: string;
   platformFeeVerifierStatus?: string;
+  borrowAssetWatcherKind?: string;
+  borrowAssetRailNetwork?: string;
+  supplierPositionId?: string;
+  supplierFillId?: string;
+  logIndex?: number;
+  tokenContract?: string;
+  fromAddress?: string;
+  toAddress?: string;
+  expectedAmount?: number;
+  finalityDepth?: number;
+  supplierDisbursementVerifierStatus?: string;
+  repaymentVerifierStatus?: string;
 }
 
 export interface HeadlessLifecycleEvent {
