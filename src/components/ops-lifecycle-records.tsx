@@ -44,7 +44,7 @@ export function OpsLifecycleRecords() {
             <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-[#2ED6A1]">Lifecycle store</p>
             <h1 className="mt-1 text-3xl font-semibold">Headless loan records</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/68">
-              Recent accountless borrower lifecycle records, transition events, and arbiter review cases loaded through production-shaped store boundaries.
+              Recent accountless borrower lifecycle records loaded through the same store/API boundary used by borrower lookup, with transition events and arbiter review cases from production-shaped store boundaries.
             </p>
           </div>
           <button className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2970ff] px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={busy} onClick={refresh}>
