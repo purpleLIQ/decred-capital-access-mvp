@@ -106,8 +106,16 @@ export function deriveArbiterReviewCases(input: ArbiterCaseDerivationInput): Arb
     cases.push(createCase({ record, events, now, caseType: "evidence_incomplete", priority: "medium", reason: "Repayment is observed but evidence bundle is not prepared.", borrowerSafeSummary: "Repayment evidence review is in progress.", arbiterInternalSummary: "Repayment was detected before a prepared evidence bundle exists." }));
   }
 
-  if (record.liquidationHealth.status === "warning" || record.liquidationHealth.status === "liquidation_review") {
-    cases.push(createCase({ record, events, now, caseType: "liquidation_health_review", priority: record.liquidationHealth.status === "liquidation_review" ? "urgent" : "high", reason: "Loan health requires arbiter review.", borrowerSafeSummary: "Loan health review is open.", arbiterInternalSummary: "Liquidation health moved into warning or review state. This is review-only and not execution." }));
+  if (healthRequiresReview(record)) {
+    cases.push(createCase({ record, events, now, caseType: "liquidation_health_review", priority: healthPriority(record), reason: "Loan health requires arbiter review.", borrowerSafeSummary: "Loan health review is open.", arbiterInternalSummary: record.oracleHealth?.operatorInternalSummary ?? "Liquidation health moved into warning or review state. This is review-only and not execution." }));
+  }
+
+  if (record.oracleHealth?.shouldOpenArbiterReview && record.evidenceBundle.status === "placeholder") {
+    cases.push(createCase({ record, events, now, caseType: "evidence_incomplete", priority: "high", reason: "Loan health review requires a prepared evidence summary.", borrowerSafeSummary: "Evidence review is in progress.", arbiterInternalSummary: "Liquidation health policy requested review before prepared timestampable evidence exists." }));
+  }
+
+  if (record.oracleHealth?.blockerReason && /stale|reorg|watcher/i.test(record.oracleHealth.blockerReason)) {
+    cases.push(createCase({ record, events, now, caseType: "watcher_stale_or_reorged", priority: "high", reason: "Oracle or watcher state blocks health review.", borrowerSafeSummary: "Watcher review is in progress.", arbiterInternalSummary: record.oracleHealth.blockerReason }));
   }
 
   if (record.evidenceBundle.timestamp.status === "failed") {
@@ -123,6 +131,23 @@ export function deriveArbiterReviewCases(input: ArbiterCaseDerivationInput): Arb
   }
 
   return dedupeCases(cases);
+}
+
+function healthRequiresReview(record: HeadlessLoanLifecycleRecord): boolean {
+  return [
+    "warning",
+    "margin_call",
+    "liquidation_eligible",
+    "arbiter_window_open",
+    "blocked",
+    "liquidation_review",
+  ].includes(record.liquidationHealth.status) || Boolean(record.oracleHealth?.shouldOpenArbiterReview);
+}
+
+function healthPriority(record: HeadlessLoanLifecycleRecord): ArbiterCasePriority {
+  if (record.liquidationHealth.status === "liquidation_eligible" || record.liquidationHealth.status === "liquidation_review") return "urgent";
+  if (record.liquidationHealth.status === "margin_call" || record.liquidationHealth.status === "arbiter_window_open" || record.liquidationHealth.status === "blocked") return "high";
+  return "medium";
 }
 
 export function createAllowedArbiterActions(input: {

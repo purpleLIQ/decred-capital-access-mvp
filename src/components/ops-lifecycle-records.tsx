@@ -83,6 +83,9 @@ function LifecycleRecordCard({ record }: { record: HeadlessLoanLifecycleRecord }
         <div className="flex flex-wrap gap-2">
           <Badge label={record.lifecycleStatus} />
           <Badge label={record.fundingRoute.status} />
+          <Badge label={`health: ${record.liquidationHealth.status}`} />
+          {record.oracleHealth ? <Badge label={`oracle: ${record.oracleHealth.oracleFreshnessStatus}`} /> : null}
+          {record.borrowerWarningWindow?.status && record.borrowerWarningWindow.status !== "not_required" ? <Badge label={record.borrowerWarningWindow.status} /> : null}
           {record.arbiterReview.status === "requested" ? <Badge label="arbiter review open" /> : null}
         </div>
       </div>
@@ -102,6 +105,7 @@ function LifecycleRecordCard({ record }: { record: HeadlessLoanLifecycleRecord }
           <p className="mt-2 text-white/75">{record.nextSupplierOperatorAction}</p>
         </div>
       </div>
+      <OracleHealthPanel record={record} />
     </article>
   );
 }
@@ -112,6 +116,67 @@ function Badge({ label }: { label: string }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl bg-[#091440] p-3"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">{label}</p><p className="mt-1 truncate font-semibold text-white">{value}</p></div>;
+}
+
+function OracleHealthPanel({ record }: { record: HeadlessLoanLifecycleRecord }) {
+  const health = record.oracleHealth;
+  const warningWindow = record.borrowerWarningWindow;
+
+  if (!health) return null;
+
+  return (
+    <div className="mt-4 rounded-xl bg-[#091440] p-3">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#2ED6A1]">Oracle/liquidation health</p>
+          <p className="mt-2 text-sm text-white/75">{health.operatorInternalSummary}</p>
+        </div>
+        <Badge label={health.automaticLiquidationBlocked ? "execution blocked" : "review required"} />
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <Metric label="LTV" value={formatBps(health.ltvBps)} />
+        <Metric label="Collateral value" value={formatUsd(health.collateralValueUsd)} />
+        <Metric label="Debt value" value={formatUsd(health.debtValueUsd)} />
+        <Metric label="DCR/USD" value={formatUsd(health.selectedDcrUsdPrice)} />
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <Metric label="Oracle quorum" value={`${health.oracleSourceCount} sources / ${health.oracleQuorumStatus}`} />
+        <Metric label="Deviation" value={health.oracleDeviationStatus} />
+        <Metric label="Usable" value={health.oracleUsable ? "yes" : "no"} />
+        <Metric label="Policy" value={health.policyVersion} />
+      </div>
+      <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+        <div className="rounded-xl bg-[#0c1d55] p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">Borrower warning/top-up</p>
+          <p className="mt-2 text-white/75">
+            {warningWindow?.status ?? "not_required"}
+            {warningWindow?.warningDeadline ? ` until ${warningWindow.warningDeadline}` : ""}
+            {warningWindow?.topUpRequested ? `; placeholder top-up ${formatDcr(warningWindow.topUpPlaceholderAmountDcr)}` : ""}
+          </p>
+        </div>
+        <div className="rounded-xl bg-[#0c1d55] p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">Review blocker</p>
+          <p className="mt-2 text-white/75">{health.blockerReason ?? health.nextOperatorArbiterAction}</p>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-white/45">{health.auditNote}</p>
+    </div>
+  );
+}
+
+function formatBps(value: number | undefined): string {
+  if (typeof value !== "number") return "not evaluated";
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} bps`;
+}
+
+function formatUsd(value: number | undefined): string {
+  if (typeof value !== "number") return "not evaluated";
+  return `$${value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
+
+function formatDcr(value: number | undefined): string {
+  if (typeof value !== "number") return "0 DCR";
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 8 })} DCR`;
 }
 
 function formatAssetAmount(amount: number, asset: HeadlessLoanLifecycleRecord["borrowAsset"]): string {

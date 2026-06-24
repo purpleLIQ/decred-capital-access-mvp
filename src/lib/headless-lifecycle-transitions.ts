@@ -1,7 +1,12 @@
 import { allocateRepaymentAcrossSupplierPositions } from "./supplier-repayment-allocation";
 import type { EvidenceTimestampStatus } from "./evidence-timestamps";
 import { updateEvidenceTimestampAnchor } from "./evidence-timestamps";
-import type { HeadlessLoanLifecycleRecord } from "./headless-loan-lifecycle";
+import type {
+  BorrowerWarningWindow,
+  HeadlessLiquidationHealthStatus,
+  HeadlessLoanLifecycleRecord,
+  LifecycleOracleHealthSummary,
+} from "./headless-loan-lifecycle";
 import type { HeadlessLifecycleStore } from "./headless-lifecycle-store";
 import { headlessLifecycleStore } from "./headless-lifecycle-store";
 import type { HeadlessLifecycleEvent, LifecycleEventApplicationResult } from "./headless-lifecycle-events";
@@ -41,6 +46,17 @@ function transitionRecord(record: HeadlessLoanLifecycleRecord, event: HeadlessLi
 
     case "borrower_contact_updated":
       return touch(record, updatedAt);
+
+    case "oracle_price_observed":
+      return touch({
+        ...record,
+        oracleHealth: mergeOracleHealthSummary(record, event, normalizeLiquidationHealth(event.payload.status ?? event.payload.health)),
+        liquidationHealth: {
+          ...record.liquidationHealth,
+          detail: `${detail}${externalReference}`,
+          updatedAt,
+        },
+      }, updatedAt);
 
     case "collateral_lock_observed": {
       const status = collateralStatusFromWatcher(event.payload.collateralVerifierStatus);
@@ -176,6 +192,62 @@ function transitionRecord(record: HeadlessLoanLifecycleRecord, event: HeadlessLi
           detail,
           updatedAt,
         },
+        oracleHealth: mergeOracleHealthSummary(record, event, normalizeLiquidationHealth(event.payload.status ?? event.payload.health)),
+        borrowerWarningWindow: mergeWarningWindow(record.borrowerWarningWindow, event, updatedAt),
+        nextBorrowerAction: event.payload.nextBorrowerAction ?? event.payload.borrowerSafeSummary ?? record.nextBorrowerAction,
+        nextSupplierOperatorAction: event.payload.nextOperatorArbiterAction ?? event.payload.operatorInternalSummary ?? record.nextSupplierOperatorAction,
+        arbiterReview: event.payload.shouldOpenArbiterReview
+          ? {
+              ...record.arbiterReview,
+              status: "requested",
+              detail: "Arbiter review is requested from liquidation health policy output.",
+              updatedAt,
+            }
+          : record.arbiterReview,
+      }, updatedAt);
+
+    case "borrower_warning_opened":
+      return touch({
+        ...record,
+        borrowerWarningWindow: mergeWarningWindow(record.borrowerWarningWindow, event, updatedAt),
+        liquidationHealth: {
+          ...record.liquidationHealth,
+          status: normalizeLiquidationHealth(event.payload.status ?? event.payload.health),
+          detail: `${detail}${externalReference}`,
+          updatedAt,
+        },
+        nextBorrowerAction: event.payload.nextBorrowerAction ?? event.payload.borrowerSafeSummary ?? "Loan health is under review.",
+      }, updatedAt);
+
+    case "top_up_requested":
+      return touch({
+        ...record,
+        borrowerWarningWindow: {
+          ...mergeWarningWindow(record.borrowerWarningWindow, event, updatedAt),
+          status: "top_up_requested",
+          topUpRequested: true,
+        },
+        liquidationHealth: {
+          ...record.liquidationHealth,
+          status: normalizeLiquidationHealth(event.payload.status ?? event.payload.health),
+          detail: `${detail}${externalReference}`,
+          updatedAt,
+        },
+        nextBorrowerAction: event.payload.nextBorrowerAction ?? "Top-up may be required. Watch for reviewed top-up instructions.",
+        nextSupplierOperatorAction: event.payload.nextOperatorArbiterAction ?? "Prepare arbiter review evidence for the top-up request.",
+      }, updatedAt);
+
+    case "liquidation_review_confirmed":
+      return touch({
+        ...record,
+        liquidationHealth: {
+          ...record.liquidationHealth,
+          status: event.payload.health === "liquidation_eligible" ? "liquidation_eligible" : "liquidation_review",
+          detail: `${detail}${externalReference}`,
+          updatedAt,
+        },
+        oracleHealth: mergeOracleHealthSummary(record, event, normalizeLiquidationHealth(event.payload.status ?? event.payload.health ?? "liquidation_review")),
+        nextSupplierOperatorAction: event.payload.nextOperatorArbiterAction ?? "Liquidation review is eligible for arbiter/manual review only. Execution remains blocked.",
       }, updatedAt);
 
     case "arbiter_review_requested":
@@ -294,8 +366,116 @@ function collateralBorrowerMessage(status: HeadlessLoanLifecycleRecord["collater
 }
 
 function normalizeLiquidationHealth(status?: string): HeadlessLoanLifecycleRecord["liquidationHealth"]["status"] {
-  if (status === "watch" || status === "warning" || status === "liquidation_review") return status;
+  if (
+    status === "watch" ||
+    status === "warning" ||
+    status === "margin_call" ||
+    status === "liquidation_eligible" ||
+    status === "arbiter_window_open" ||
+    status === "auto_liquidation_pending" ||
+    status === "resolved" ||
+    status === "blocked" ||
+    status === "liquidation_review"
+  ) {
+    return status;
+  }
   return "healthy";
+}
+
+function mergeOracleHealthSummary(
+  record: HeadlessLoanLifecycleRecord,
+  event: HeadlessLifecycleEvent,
+  status: HeadlessLiquidationHealthStatus,
+): LifecycleOracleHealthSummary {
+  const current = record.oracleHealth ?? fallbackOracleHealthSummary(event.observedAt);
+  return {
+    ...current,
+    resultId: event.payload.healthResultId ?? current.resultId,
+    policyVersion: event.payload.policyVersion ?? current.policyVersion,
+    status,
+    ltvBps: event.payload.ltvBps ?? current.ltvBps,
+    collateralizationBps: event.payload.collateralizationBps ?? current.collateralizationBps,
+    collateralValueUsd: event.payload.collateralValueUsd ?? current.collateralValueUsd,
+    debtValueUsd: event.payload.debtValueUsd ?? current.debtValueUsd,
+    selectedDcrUsdPrice: event.payload.selectedDcrUsdPrice ?? current.selectedDcrUsdPrice,
+    selectedBorrowAssetUsdPrice: event.payload.selectedBorrowAssetUsdPrice ?? current.selectedBorrowAssetUsdPrice,
+    oracleSourceCount: event.payload.oracleSourceCount ?? current.oracleSourceCount,
+    oracleFreshnessStatus: event.payload.oracleFreshnessStatus ?? current.oracleFreshnessStatus,
+    oracleDeviationStatus: event.payload.oracleDeviationStatus ?? current.oracleDeviationStatus,
+    oracleQuorumStatus: event.payload.oracleQuorumStatus ?? current.oracleQuorumStatus,
+    oracleUsable: event.payload.oracleUsable ?? (!event.payload.oracleBlockerReason ? true : false),
+    blockerReason: event.payload.oracleBlockerReason ?? current.blockerReason,
+    borrowerSafeSummary: event.payload.borrowerSafeSummary ?? current.borrowerSafeSummary,
+    operatorInternalSummary: event.payload.operatorInternalSummary ?? current.operatorInternalSummary,
+    nextBorrowerAction: event.payload.nextBorrowerAction ?? current.nextBorrowerAction,
+    nextOperatorArbiterAction: event.payload.nextOperatorArbiterAction ?? current.nextOperatorArbiterAction,
+    shouldOpenArbiterReview: event.payload.shouldOpenArbiterReview ?? current.shouldOpenArbiterReview,
+    liquidationReviewEligible: event.payload.liquidationReviewEligible ?? current.liquidationReviewEligible,
+    automaticLiquidationBlocked: event.payload.automaticLiquidationBlocked ?? true,
+    auditNote: "Oracle health summary was updated through the safe lifecycle event path. No liquidation execution occurred.",
+    updatedAt: event.observedAt,
+  };
+}
+
+function mergeWarningWindow(
+  current: BorrowerWarningWindow | undefined,
+  event: HeadlessLifecycleEvent,
+  updatedAt: string,
+): BorrowerWarningWindow {
+  const fallback: BorrowerWarningWindow = {
+    status: "not_required",
+    topUpRequested: false,
+    topUpPlaceholderAmountDcr: 0,
+    borrowerSafeMessage: "Healthy",
+    updatedAt,
+  };
+  const base = current ?? fallback;
+  return {
+    ...base,
+    status: normalizeWarningWindowStatus(event.payload.warningWindowStatus, base.status),
+    warningOpenedAt: event.payload.warningWindowStatus && event.payload.warningWindowStatus !== "not_required"
+      ? base.warningOpenedAt ?? event.observedAt
+      : base.warningOpenedAt,
+    warningDeadline: event.payload.warningDeadline ?? base.warningDeadline,
+    topUpRequested: event.payload.warningWindowStatus === "top_up_requested" || base.topUpRequested,
+    topUpPlaceholderAmountDcr: event.payload.topUpPlaceholderAmountDcr ?? base.topUpPlaceholderAmountDcr,
+    borrowerSafeMessage: event.payload.borrowerSafeSummary ?? base.borrowerSafeMessage,
+    updatedAt,
+  };
+}
+
+function normalizeWarningWindowStatus(status: string | undefined, fallback: BorrowerWarningWindow["status"]): BorrowerWarningWindow["status"] {
+  if (status === "not_required" || status === "warning_open" || status === "top_up_requested" || status === "grace_expired" || status === "resolved" || status === "blocked") return status;
+  return fallback;
+}
+
+function fallbackOracleHealthSummary(updatedAt: string): LifecycleOracleHealthSummary {
+  return {
+    resultId: "health-not-evaluated",
+    policyVersion: "not_evaluated",
+    status: "healthy",
+    ltvBps: 0,
+    collateralizationBps: 0,
+    collateralValueUsd: 0,
+    debtValueUsd: 0,
+    selectedDcrUsdPrice: 0,
+    selectedBorrowAssetUsdPrice: 0,
+    oracleSourceCount: 0,
+    oracleFreshnessStatus: "missing",
+    oracleDeviationStatus: "missing",
+    oracleQuorumStatus: "missing",
+    oracleUsable: false,
+    blockerReason: "Oracle health has not been evaluated.",
+    borrowerSafeSummary: "Healthy",
+    operatorInternalSummary: "Oracle/liquidation health policy has not run for this record yet.",
+    nextBorrowerAction: "No collateral health action is required.",
+    nextOperatorArbiterAction: "Run fixture/manual oracle health evaluation when watcher evidence is available.",
+    shouldOpenArbiterReview: false,
+    liquidationReviewEligible: false,
+    automaticLiquidationBlocked: true,
+    auditNote: "Fallback oracle health summary.",
+    updatedAt,
+  };
 }
 
 function touch(record: HeadlessLoanLifecycleRecord, updatedAt: string): HeadlessLoanLifecycleRecord {

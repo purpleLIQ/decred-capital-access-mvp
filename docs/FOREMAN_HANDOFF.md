@@ -1,5 +1,83 @@
 # Foreman Handoff
 
+## Current Handoff: Oracle Liquidation Health Scaffold
+
+Date: 2026-06-24
+Branch: `oracle-liquidation-health-policy`
+
+This branch adds a review-only oracle/liquidation-health scaffold for the Decred lending MVP. It is meant to help operators and future arbiters understand when DCR-backed loans are healthy, warning-level, margin-call-level, liquidation-review-eligible, or blocked by bad oracle/watcher evidence.
+
+Important safety boundary:
+
+- no live oracle calls,
+- no app-side signing,
+- no wallet unlock,
+- no private-key handling,
+- no broadcast,
+- no mainnet path,
+- no liquidation execution,
+- no funds movement.
+
+Completed in this pass:
+
+- Added typed oracle observations and policy input for `DCR/USD`, `BTC/USD`, `USDC/USD`, and `USDT/USD`.
+- Added deterministic oracle quorum, freshness, deviation, stale-data, and blocker checks.
+- Added a liquidation-health evaluator that calculates LTV, collateralization, borrower warning/top-up windows, arbiter review signals, and privacy-safe evidence summaries.
+- Wired new health events through the existing headless lifecycle event path.
+- Reused the existing arbiter review queue path for `liquidation_health_review`, `evidence_incomplete`, and `watcher_stale_or_reorged` cases.
+- Added reusable fixture/manual scenarios in `src/lib/oracle-liquidation-health-fixtures.ts`.
+- Added targeted tests in `src/lib/__tests__/oracle-liquidation-health.test.ts`.
+- Added ops-page health visibility and simple borrower lookup health text.
+- Added `docs/ORACLE_LIQUIDATION_HEALTH.md`.
+
+Targeted verification already passed:
+
+```bash
+npm test -- --run src/lib/__tests__/oracle-liquidation-health.test.ts
+```
+
+Result:
+
+```text
+1 test file passed
+16 tests passed
+```
+
+Next Foreman should run the full checks before merge:
+
+```bash
+npm test
+npm run lint
+npm run build
+npm run safety:check
+```
+
+Recommended next developer prompt:
+
+```text
+Audit the oracle/liquidation-health scaffold on branch oracle-liquidation-health-policy.
+
+Confirm that the code stays review-only: no live oracle calls, no signing, no broadcast, no mainnet, no liquidation execution, and no funds movement.
+
+Then move development forward by adding a small operator-only demo action that seeds or submits one fixture liquidation-health scenario from the ops UI. Reuse submitFixtureLiquidationHealthScenario and the existing lifecycle event API/store boundaries. Do not create a parallel state machine.
+
+Acceptance criteria:
+- operator can submit healthy, warning, margin call, liquidation eligible, stale oracle, deviated oracle, and stale watcher fixture scenarios for an existing lifecycle record,
+- borrower lookup shows only simple health/action text,
+- ops lifecycle page shows the detailed oracle/liquidation-health summary,
+- arbiter cases are created only through the existing arbiter review queue path,
+- automatic liquidation remains blocked,
+- tests cover the new UI/action seam.
+
+Run:
+- npm test
+- npm run lint
+- npm run build
+- npm run safety:check
+```
+
+---
+
 Date: 2026-06-15
 Branch: `connect-supplier-offers-to-borrower-fills`
 PR: #83, `Connect supplier offers to borrower quote fills`
