@@ -301,7 +301,7 @@ function borrowerLoanHealth(record: HeadlessLoanLifecycleRecord): string {
     case "liquidation_review":
       return "Arbiter review open";
     case "blocked":
-      return "Review blocked until evidence is refreshed";
+      return "Review blocked until oracle data is fresh";
     case "resolved":
       return "Review resolved";
     case "auto_liquidation_pending":
