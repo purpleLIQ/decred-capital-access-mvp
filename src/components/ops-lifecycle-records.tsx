@@ -6,11 +6,27 @@ import { useCallback, useEffect, useState } from "react";
 import { ArbiterReviewQueue } from "@/components/arbiter-review-queue";
 import { LifecycleEventHistory } from "@/components/lifecycle-event-history";
 import type { HeadlessLoanLifecycleRecord } from "@/lib/headless-loan-lifecycle";
+import type { LiquidationHealthFixtureScenarioName, SubmittedLiquidationHealthFixtureScenario } from "@/lib/oracle-liquidation-health-fixtures";
+
+const liquidationHealthScenarioOptions: Array<{ value: LiquidationHealthFixtureScenarioName; label: string }> = [
+  { value: "healthy_loan", label: "Healthy loan" },
+  { value: "warning_state", label: "Warning state" },
+  { value: "margin_call_state", label: "Margin call state" },
+  { value: "liquidation_eligible_state", label: "Liquidation eligible state" },
+  { value: "stale_oracle", label: "Stale oracle" },
+  { value: "deviated_oracle", label: "Deviated oracle" },
+  { value: "stale_watcher", label: "Stale watcher" },
+  { value: "borrower_warning_opened", label: "Borrower warning opened" },
+  { value: "top_up_requested", label: "Top-up requested" },
+  { value: "arbiter_review_case_opened", label: "Arbiter review case opened" },
+  { value: "evidence_summary_prepared", label: "Evidence summary prepared" },
+];
 
 export function OpsLifecycleRecords() {
   const [records, setRecords] = useState<HeadlessLoanLifecycleRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [derivedPanelKey, setDerivedPanelKey] = useState(0);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -20,6 +36,7 @@ export function OpsLifecycleRecords() {
       const data = (await response.json()) as { records?: HeadlessLoanLifecycleRecord[]; error?: string };
       if (!response.ok) throw new Error(data.error ?? "Could not load lifecycle records.");
       setRecords(data.records ?? []);
+      setDerivedPanelKey((value) => value + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load lifecycle records.");
     } finally {
@@ -31,6 +48,11 @@ export function OpsLifecycleRecords() {
     const timeout = window.setTimeout(() => void refresh(), 0);
     return () => window.clearTimeout(timeout);
   }, [refresh]);
+
+  function handleRecordUpdated(record: HeadlessLoanLifecycleRecord) {
+    setRecords((existing) => [record, ...existing.filter((item) => item.lookupCode !== record.lookupCode)]);
+    setDerivedPanelKey((value) => value + 1);
+  }
 
   return (
     <main className="min-h-screen bg-[#091440] px-4 py-6 text-white sm:px-6 lg:px-8">
@@ -57,7 +79,7 @@ export function OpsLifecycleRecords() {
 
         <section className="grid gap-4">
           {records.length ? (
-            records.map((record) => <LifecycleRecordCard key={record.lookupCode} record={record} />)
+            records.map((record) => <LifecycleRecordCard key={record.lookupCode} record={record} onRecordUpdated={handleRecordUpdated} />)
           ) : (
             <div className="rounded-2xl border border-dashed border-[#70cbff]/25 bg-[#0c1d55] p-8 text-center text-white/60">
               No lifecycle records saved yet. Accept a quote from the borrower flow to create the first record.
@@ -65,14 +87,14 @@ export function OpsLifecycleRecords() {
           )}
         </section>
 
-        <ArbiterReviewQueue />
-        <LifecycleEventHistory />
+        <ArbiterReviewQueue key={`arbiter-${derivedPanelKey}`} />
+        <LifecycleEventHistory key={`events-${derivedPanelKey}`} />
       </div>
     </main>
   );
 }
 
-function LifecycleRecordCard({ record }: { record: HeadlessLoanLifecycleRecord }) {
+function LifecycleRecordCard({ record, onRecordUpdated }: { record: HeadlessLoanLifecycleRecord; onRecordUpdated: (record: HeadlessLoanLifecycleRecord) => void }) {
   return (
     <article className="rounded-2xl border border-[#70cbff]/20 bg-[#0c1d55] p-4 shadow-xl shadow-black/20">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -105,8 +127,69 @@ function LifecycleRecordCard({ record }: { record: HeadlessLoanLifecycleRecord }
           <p className="mt-2 text-white/75">{record.nextSupplierOperatorAction}</p>
         </div>
       </div>
+      <LiquidationHealthScenarioControl record={record} onRecordUpdated={onRecordUpdated} />
       <OracleHealthPanel record={record} />
     </article>
+  );
+}
+
+function LiquidationHealthScenarioControl({ record, onRecordUpdated }: { record: HeadlessLoanLifecycleRecord; onRecordUpdated: (record: HeadlessLoanLifecycleRecord) => void }) {
+  const [scenario, setScenario] = useState<LiquidationHealthFixtureScenarioName>("healthy_loan");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<SubmittedLiquidationHealthFixtureScenario | null>(null);
+
+  async function submitScenario() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/oracle-liquidation-health/fixture-scenario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lookupCode: record.lookupCode, scenario }),
+      });
+      const data = (await response.json()) as SubmittedLiquidationHealthFixtureScenario & { error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Could not submit liquidation-health fixture scenario.");
+      setResult(data);
+      onRecordUpdated(data.finalRecord);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not submit liquidation-health fixture scenario.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-[#70cbff]/20 bg-[#091440] p-3">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#2ED6A1]">Operator-only fixture health scenario</p>
+          <p className="mt-1 text-sm text-white/60">Submits through the existing lifecycle event/store and arbiter case paths. Automatic liquidation remains blocked.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <select className="h-10 rounded-md border border-[#70cbff]/20 bg-[#0c1d55] px-3 text-sm text-white" onChange={(event) => setScenario(event.target.value as LiquidationHealthFixtureScenarioName)} value={scenario}>
+            {liquidationHealthScenarioOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <button className="h-10 rounded-md bg-[#2970ff] px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={busy} onClick={submitScenario}>
+            {busy ? "Submitting" : "Submit scenario"}
+          </button>
+        </div>
+      </div>
+      {error ? <div className="mt-3 rounded-xl border border-[#ed6d47] bg-[#ed6d47]/10 p-3 text-sm text-[#ffb19c]">{error}</div> : null}
+      {result ? (
+        <div className="mt-3 grid gap-3 md:grid-cols-4">
+          <Metric label="Scenario" value={labelForScenario(result.scenario)} />
+          <Metric label="Health" value={result.healthResult.status} />
+          <Metric label="Arbiter cases" value={`${result.arbiterCases.length}`} />
+          <Metric label="Events" value={`${result.submittedEvents.length}`} />
+          <Metric label="Oracle usable" value={result.healthResult.oracleUsable ? "yes" : "no"} />
+          <Metric label="Blocker" value={result.healthResult.blockerReason ?? "none"} />
+          <Metric label="Evidence" value={result.evidenceSummary.healthResultId} />
+          <Metric label="Auto liquidation" value={result.healthResult.automaticLiquidationBlocked ? "blocked" : "not blocked"} />
+        </div>
+      ) : null}
+      {result ? <p className="mt-3 text-xs text-white/45">{result.safetyNote}</p> : null}
+    </div>
   );
 }
 
@@ -131,7 +214,7 @@ function OracleHealthPanel({ record }: { record: HeadlessLoanLifecycleRecord }) 
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#2ED6A1]">Oracle/liquidation health</p>
           <p className="mt-2 text-sm text-white/75">{health.operatorInternalSummary}</p>
         </div>
-        <Badge label={health.automaticLiquidationBlocked ? "execution blocked" : "review required"} />
+        <Badge label={health.automaticLiquidationBlocked ? "automatic liquidation blocked" : "review required"} />
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-4">
         <Metric label="LTV" value={formatBps(health.ltvBps)} />
@@ -140,9 +223,13 @@ function OracleHealthPanel({ record }: { record: HeadlessLoanLifecycleRecord }) 
         <Metric label="DCR/USD" value={formatUsd(health.selectedDcrUsdPrice)} />
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-4">
-        <Metric label="Oracle quorum" value={`${health.oracleSourceCount} sources / ${health.oracleQuorumStatus}`} />
+        <Metric label={`${record.borrowAsset}/USD`} value={formatUsd(health.selectedBorrowAssetUsdPrice)} />
+        <Metric label="Oracle freshness" value={health.oracleFreshnessStatus} />
         <Metric label="Deviation" value={health.oracleDeviationStatus} />
+        <Metric label="Quorum" value={`${health.oracleSourceCount} sources / ${health.oracleQuorumStatus}`} />
         <Metric label="Usable" value={health.oracleUsable ? "yes" : "no"} />
+        <Metric label="Review signal" value={health.shouldOpenArbiterReview ? "arbiter review" : "none"} />
+        <Metric label="Evidence summary" value={health.resultId} />
         <Metric label="Policy" value={health.policyVersion} />
       </div>
       <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
@@ -162,6 +249,10 @@ function OracleHealthPanel({ record }: { record: HeadlessLoanLifecycleRecord }) 
       <p className="mt-3 text-xs text-white/45">{health.auditNote}</p>
     </div>
   );
+}
+
+function labelForScenario(scenario: LiquidationHealthFixtureScenarioName): string {
+  return liquidationHealthScenarioOptions.find((option) => option.value === scenario)?.label ?? scenario;
 }
 
 function formatBps(value: number | undefined): string {
