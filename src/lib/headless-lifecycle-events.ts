@@ -4,6 +4,7 @@ import type { HeadlessLoanLifecycleRecord } from "./headless-loan-lifecycle";
 export type HeadlessLifecycleEventKind =
   | "borrower_quote_accepted"
   | "borrower_contact_updated"
+  | "oracle_price_observed"
   | "collateral_lock_observed"
   | "dcr_platform_fee_output_observed"
   | "supplier_disbursement_ready"
@@ -12,6 +13,9 @@ export type HeadlessLifecycleEventKind =
   | "collateral_release_ready"
   | "collateral_release_observed"
   | "liquidation_health_updated"
+  | "borrower_warning_opened"
+  | "top_up_requested"
+  | "liquidation_review_confirmed"
   | "arbiter_review_requested"
   | "arbiter_review_resolved"
   | "evidence_bundle_prepared"
@@ -82,6 +86,31 @@ export interface HeadlessLifecycleEventPayload {
   finalityDepth?: number;
   supplierDisbursementVerifierStatus?: string;
   repaymentVerifierStatus?: string;
+  healthResultId?: string;
+  policyVersion?: string;
+  oracleObservationIds?: string[];
+  selectedDcrUsdPrice?: number;
+  selectedBorrowAssetUsdPrice?: number;
+  oracleSourceCount?: number;
+  oracleFreshnessStatus?: string;
+  oracleDeviationStatus?: string;
+  oracleQuorumStatus?: string;
+  oracleUsable?: boolean;
+  oracleBlockerReason?: string;
+  ltvBps?: number;
+  collateralizationBps?: number;
+  collateralValueUsd?: number;
+  debtValueUsd?: number;
+  warningWindowStatus?: string;
+  warningDeadline?: string;
+  topUpPlaceholderAmountDcr?: number;
+  borrowerSafeSummary?: string;
+  operatorInternalSummary?: string;
+  nextBorrowerAction?: string;
+  nextOperatorArbiterAction?: string;
+  shouldOpenArbiterReview?: boolean;
+  liquidationReviewEligible?: boolean;
+  automaticLiquidationBlocked?: boolean;
 }
 
 export interface HeadlessLifecycleEvent {
@@ -134,6 +163,8 @@ export function getAffectedLifecycleSection(kind: HeadlessLifecycleEventKind): A
       return "quoteStatus";
     case "borrower_contact_updated":
       return "borrowerContact";
+    case "oracle_price_observed":
+      return "liquidationHealth";
     case "collateral_lock_observed":
       return "collateralLock";
     case "dcr_platform_fee_output_observed":
@@ -147,6 +178,9 @@ export function getAffectedLifecycleSection(kind: HeadlessLifecycleEventKind): A
     case "collateral_release_observed":
       return "collateralRelease";
     case "liquidation_health_updated":
+    case "borrower_warning_opened":
+    case "top_up_requested":
+    case "liquidation_review_confirmed":
       return "liquidationHealth";
     case "arbiter_review_requested":
     case "arbiter_review_resolved":

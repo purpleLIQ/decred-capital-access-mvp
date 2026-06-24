@@ -235,6 +235,8 @@ function LookupResult({ record }: { record: HeadlessLoanLifecycleRecord }) {
       </div>
       <div className="space-y-2">
         <SummaryRow label="Next borrower action" value={record.nextBorrowerAction} />
+        <SummaryRow label="Loan health" value={borrowerLoanHealth(record)} />
+        <SummaryRow label="Health action" value={borrowerHealthAction(record)} />
         <SummaryRow label="Operator action" value={record.nextSupplierOperatorAction} />
         <SummaryRow label="Collateral lock" value={record.collateralLock.status} />
         <SummaryRow label="Fee output" value={record.dcrPlatformFeeOutput.status} />
@@ -280,6 +282,35 @@ function StatusBadge({ label }: { label: string }) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return <div className="flex justify-between gap-3"><span className="text-[#5f716a]">{label}</span><span className="truncate font-medium text-[#091440]">{value}</span></div>;
+}
+
+function borrowerLoanHealth(record: HeadlessLoanLifecycleRecord): string {
+  const summary = record.oracleHealth?.borrowerSafeSummary;
+  if (summary) return summary;
+
+  switch (record.liquidationHealth.status) {
+    case "healthy":
+    case "watch":
+      return "Healthy";
+    case "warning":
+      return "Collateral warning";
+    case "margin_call":
+      return "Top-up may be required";
+    case "liquidation_eligible":
+    case "arbiter_window_open":
+    case "liquidation_review":
+      return "Arbiter review open";
+    case "blocked":
+      return "Review blocked until evidence is refreshed";
+    case "resolved":
+      return "Review resolved";
+    case "auto_liquidation_pending":
+      return "Review pending";
+  }
+}
+
+function borrowerHealthAction(record: HeadlessLoanLifecycleRecord): string {
+  return record.oracleHealth?.nextBorrowerAction ?? "No collateral health action is required.";
 }
 
 function currency(value: number): string {

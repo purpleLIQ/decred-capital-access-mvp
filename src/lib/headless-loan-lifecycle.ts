@@ -16,6 +16,17 @@ export const treasuryRequestThresholdUsd = 10_000;
 
 export type BorrowerContactPreference = "none" | "email" | "other";
 export type FundingRouteKind = "supplier_pool" | "treasury_review" | "mixed_supplier_treasury" | "waiting_for_liquidity";
+export type HeadlessLiquidationHealthStatus =
+  | "healthy"
+  | "watch"
+  | "warning"
+  | "margin_call"
+  | "liquidation_eligible"
+  | "arbiter_window_open"
+  | "auto_liquidation_pending"
+  | "resolved"
+  | "blocked"
+  | "liquidation_review";
 export type HeadlessLoanLifecycleStatus =
   | "quote_created"
   | "quote_accepted"
@@ -51,6 +62,45 @@ export interface EvidenceBundleStatus extends LifecycleStatusSection<"placeholde
   timestamp: EvidenceTimestampAnchor;
 }
 
+export type BorrowerWarningWindowStatus = "not_required" | "warning_open" | "top_up_requested" | "grace_expired" | "resolved" | "blocked";
+
+export interface BorrowerWarningWindow {
+  status: BorrowerWarningWindowStatus;
+  warningOpenedAt?: string;
+  warningDeadline?: string;
+  topUpRequested: boolean;
+  topUpPlaceholderAmountDcr: number;
+  borrowerSafeMessage: string;
+  updatedAt: string;
+}
+
+export interface LifecycleOracleHealthSummary {
+  resultId: string;
+  policyVersion: string;
+  status: HeadlessLiquidationHealthStatus;
+  ltvBps: number;
+  collateralizationBps: number;
+  collateralValueUsd: number;
+  debtValueUsd: number;
+  selectedDcrUsdPrice: number;
+  selectedBorrowAssetUsdPrice: number;
+  oracleSourceCount: number;
+  oracleFreshnessStatus: string;
+  oracleDeviationStatus: string;
+  oracleQuorumStatus: string;
+  oracleUsable: boolean;
+  blockerReason?: string;
+  borrowerSafeSummary: string;
+  operatorInternalSummary: string;
+  nextBorrowerAction: string;
+  nextOperatorArbiterAction: string;
+  shouldOpenArbiterReview: boolean;
+  liquidationReviewEligible: boolean;
+  automaticLiquidationBlocked: boolean;
+  auditNote: string;
+  updatedAt: string;
+}
+
 export interface HeadlessLoanLifecycleRecord {
   loanId: string;
   publicLoanReference: string;
@@ -80,7 +130,9 @@ export interface HeadlessLoanLifecycleRecord {
   supplierDisbursement: LifecycleStatusSection<"not_started" | "awaiting_funding" | "ready" | "disbursed">;
   repaymentDetection: LifecycleStatusSection<"not_started" | "watcher_placeholder" | "partial" | "detected">;
   collateralRelease: LifecycleStatusSection<"not_started" | "blocked" | "ready" | "released">;
-  liquidationHealth: LifecycleStatusSection<"healthy" | "watch" | "warning" | "liquidation_review">;
+  liquidationHealth: LifecycleStatusSection<HeadlessLiquidationHealthStatus>;
+  oracleHealth: LifecycleOracleHealthSummary;
+  borrowerWarningWindow: BorrowerWarningWindow;
   arbiterReview: LifecycleStatusSection<"not_required" | "available" | "requested" | "resolved">;
   evidenceBundle: EvidenceBundleStatus;
   fundingRoute: FundingRouteStatus;
@@ -193,6 +245,8 @@ export function createHeadlessLoanLifecycleRecord(input: HeadlessLoanLifecycleIn
       detail: "Liquidation health is a typed placeholder; production execution is intentionally disabled.",
       updatedAt: now,
     },
+    oracleHealth: createDefaultOracleHealthSummary(now),
+    borrowerWarningWindow: createDefaultBorrowerWarningWindow(now),
     arbiterReview: {
       status: "available",
       detail: "Arbiter review is modeled for future dispute, release, and liquidation workflows.",
@@ -313,4 +367,43 @@ function createPublicLoanReference(asset: Loan["borrowAsset"], amount: number, n
 function estimateRequestedAmountUsd(amount: number, asset: Loan["borrowAsset"]): number {
   if (asset === "BTC") return amount * 100_000;
   return amount;
+}
+
+function createDefaultOracleHealthSummary(now: string): LifecycleOracleHealthSummary {
+  return {
+    resultId: "health-not-evaluated",
+    policyVersion: "not_evaluated",
+    status: "healthy",
+    ltvBps: 0,
+    collateralizationBps: 0,
+    collateralValueUsd: 0,
+    debtValueUsd: 0,
+    selectedDcrUsdPrice: 0,
+    selectedBorrowAssetUsdPrice: 0,
+    oracleSourceCount: 0,
+    oracleFreshnessStatus: "missing",
+    oracleDeviationStatus: "missing",
+    oracleQuorumStatus: "missing",
+    oracleUsable: false,
+    blockerReason: "Oracle health has not been evaluated.",
+    borrowerSafeSummary: "Healthy",
+    operatorInternalSummary: "Oracle/liquidation health policy has not run for this record yet.",
+    nextBorrowerAction: "No collateral health action is required.",
+    nextOperatorArbiterAction: "Run fixture/manual oracle health evaluation when watcher evidence is available.",
+    shouldOpenArbiterReview: false,
+    liquidationReviewEligible: false,
+    automaticLiquidationBlocked: true,
+    auditNote: "Default health summary is placeholder-only. No oracle provider, liquidation transaction, signing, broadcast, or fund movement is active.",
+    updatedAt: now,
+  };
+}
+
+function createDefaultBorrowerWarningWindow(now: string): BorrowerWarningWindow {
+  return {
+    status: "not_required",
+    topUpRequested: false,
+    topUpPlaceholderAmountDcr: 0,
+    borrowerSafeMessage: "Healthy",
+    updatedAt: now,
+  };
 }
