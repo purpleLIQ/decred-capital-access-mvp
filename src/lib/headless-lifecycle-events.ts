@@ -1,6 +1,17 @@
 import type { EvidenceDigestAlgorithm, EvidenceTimestampProvider, EvidenceTimestampVerificationStatus } from "./evidence-timestamps";
 import type { HeadlessLoanLifecycleRecord } from "./headless-loan-lifecycle";
 
+export type LifecycleEventIntegrityStatus =
+  | "accepted"
+  | "duplicate"
+  | "replayed"
+  | "stale"
+  | "out_of_order"
+  | "unsafe_transition"
+  | "contradictory"
+  | "missing_required_context"
+  | "needs_manual_review";
+
 export type HeadlessLifecycleEventKind =
   | "borrower_quote_accepted"
   | "borrower_contact_updated"
@@ -24,7 +35,8 @@ export type HeadlessLifecycleEventKind =
   | "evidence_timestamp_submitted"
   | "evidence_timestamp_anchored"
   | "evidence_timestamp_verified"
-  | "evidence_timestamp_failed";
+  | "evidence_timestamp_failed"
+  | "lifecycle_event_integrity_checked";
 
 export type HeadlessLifecycleEventSource = "borrower" | "supplier" | "arbiter" | "operator" | "watcher" | "oracle" | "system";
 
@@ -111,6 +123,15 @@ export interface HeadlessLifecycleEventPayload {
   shouldOpenArbiterReview?: boolean;
   liquidationReviewEligible?: boolean;
   automaticLiquidationBlocked?: boolean;
+  integrityStatus?: LifecycleEventIntegrityStatus;
+  integrityApplied?: boolean;
+  integrityReason?: string;
+  integrityAuditNote?: string;
+  integrityOriginalEventId?: string;
+  integrityPreviousSummary?: string;
+  integrityNextSummary?: string;
+  integrityManualReviewRecommended?: boolean;
+  arbiterDecisionId?: string;
 }
 
 export interface HeadlessLifecycleEvent {
@@ -164,6 +185,7 @@ export function getAffectedLifecycleSection(kind: HeadlessLifecycleEventKind): A
     case "borrower_contact_updated":
       return "borrowerContact";
     case "oracle_price_observed":
+    case "lifecycle_event_integrity_checked":
       return "liquidationHealth";
     case "collateral_lock_observed":
       return "collateralLock";
