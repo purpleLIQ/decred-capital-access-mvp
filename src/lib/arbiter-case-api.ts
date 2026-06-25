@@ -121,6 +121,7 @@ export async function recordArbiterActionDecision(
 
   let submittedEvent: HeadlessLifecycleEvent | undefined;
   if (lifecycleEvent) {
+    lifecycleEvent.payload.arbiterDecisionId = decision.decisionId;
     const submitted = await submitHeadlessLifecycleEvent(lifecycleEvent, { lifecycleStore: stores.lifecycleStore, eventStore: stores.eventStore });
     if (submitted.ok) submittedEvent = submitted.data?.event;
   }

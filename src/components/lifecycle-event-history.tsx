@@ -40,6 +40,7 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
   const isTimestampEvent = event.kind.includes("evidence_timestamp");
   const isDecredWatcherEvent = Boolean(event.payload.decredWatcherKind);
   const isBorrowAssetWatcherEvent = Boolean(event.payload.borrowAssetWatcherKind);
+  const integrityStatus = event.payload.integrityStatus ?? "accepted";
 
   return (
     <article className="rounded-xl bg-[#091440] p-3 text-sm">
@@ -52,6 +53,8 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
         <div className="flex flex-wrap gap-2">
           <Badge label={event.source} />
           <Badge label={affectedSectionLabel(event.kind)} />
+          <Badge label={`integrity: ${integrityStatus}`} />
+          {event.payload.integrityApplied === false ? <Badge label="no-op" /> : null}
         </div>
       </div>
       <div className="mt-3 grid gap-2 md:grid-cols-3">
@@ -59,6 +62,14 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
         <Metric label="External ref" value={event.externalReference ?? "none"} />
         <Metric label="Source" value={event.source} />
       </div>
+      {event.payload.integrityStatus ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <Metric label="Integrity" value={event.payload.integrityStatus} />
+          <Metric label="Applied" value={event.payload.integrityApplied === false ? "no" : "yes"} />
+          <Metric label="Prior event" value={event.payload.integrityOriginalEventId ?? "none"} />
+          <Metric label="Manual review" value={event.payload.integrityManualReviewRecommended ? "recommended" : "not required"} />
+        </div>
+      ) : null}
       {isTimestampEvent ? (
         <div className="mt-3 grid gap-2 md:grid-cols-4">
           <Metric label="Evidence hash" value={event.payload.evidenceHash ?? "none"} />
@@ -104,6 +115,8 @@ function LifecycleEventRow({ event }: { event: HeadlessLifecycleEvent }) {
         </div>
       ) : null}
       <p className="mt-3 text-white/70">{event.payload.detail}</p>
+      {event.payload.integrityReason ? <p className="mt-2 text-xs text-[#ffb19c]">{event.payload.integrityReason}</p> : null}
+      {event.payload.integrityAuditNote ? <p className="mt-2 text-xs text-[#70cbff]">{event.payload.integrityAuditNote}</p> : null}
       {event.payload.timestampAuditNote ? <p className="mt-2 text-xs text-[#70cbff]">{event.payload.timestampAuditNote}</p> : null}
       <p className="mt-2 text-xs text-[#2ED6A1]">{event.safetyAuditNote}</p>
     </article>

@@ -1,5 +1,79 @@
 # Foreman Handoff
 
+## Current Handoff: Lifecycle Event Integrity Gate
+
+Date: 2026-06-25
+Branch: `lifecycle-event-integrity-v2`
+
+This branch hardens the central lifecycle event path so duplicate, replayed, stale, out-of-order, contradictory, and unsafe lifecycle events do not corrupt headless loan records.
+
+Completed in this pass:
+
+- Added `src/lib/lifecycle-event-integrity.ts`.
+- Extended `src/lib/lifecycle-event-store.ts` with lookup helpers for event id, external reference, watcher event id, health result id, and arbiter decision id.
+- Wired `submitHeadlessLifecycleEvent(...)` so integrity validation runs before lifecycle mutation.
+- Returned typed integrity metadata in the lifecycle event API result.
+- Stored unique blocked/no-op events with integrity metadata for ops history.
+- Avoided replacing original accepted events when the exact same event id is submitted again.
+- Tagged arbiter decision lifecycle events with `arbiterDecisionId`.
+- Added ops event-history visibility for integrity status, applied/no-op, reason, and audit note.
+- Added focused tests in `src/lib/__tests__/lifecycle-event-integrity.test.ts`.
+- Added `docs/LIFECYCLE_EVENT_INTEGRITY.md`.
+
+Covered checks:
+
+- duplicate event id cannot apply twice,
+- duplicate watcher event id cannot apply twice for the same event kind,
+- duplicate oracle/health result id cannot apply twice for the same event kind,
+- duplicate arbiter decision id cannot apply twice for the same event kind,
+- stale watcher event cannot overwrite newer progressed lifecycle state,
+- stale oracle/liquidation-health result cannot make a loan look safer,
+- repayment mismatch cannot mark repayment complete,
+- older partial repayment cannot roll back full repayment,
+- older arbiter review request cannot reopen a resolved review,
+- liquidation review cannot imply liquidation execution readiness.
+
+Safety boundary:
+
+- no live oracle providers,
+- no RPC calls,
+- no wallet integration,
+- no private-key handling,
+- no signing,
+- no broadcast,
+- no mainnet path,
+- no liquidation transaction creation,
+- no liquidation execution,
+- no funds movement.
+
+Verification passed:
+
+```bash
+npm run verify
+npm run verify:protocol
+npm test
+npm run lint
+npm run build
+npm run safety:check
+```
+
+Note: `npm run lint` exits successfully with 13 pre-existing warnings in older files.
+
+Recommended next prompt:
+
+```text
+Review branch lifecycle-event-integrity-v2 for the central lifecycle event integrity gate.
+
+Confirm the gate is wired only around submitHeadlessLifecycleEvent and does not create a parallel lifecycle system. Check that duplicate/replay/stale/unsafe events no-op before mutation, that ops event history shows integrity status, and that no wallet/signing/broadcast/mainnet/liquidation execution/funds movement was added.
+
+If continuing development, add a narrow follow-up that records a formal manual-review case when integrity returns needs_manual_review or unsafe_transition, reusing the existing arbiter review queue. Do not create a new review system.
+
+Run:
+- npm run verify
+```
+
+---
+
 ## Current Handoff: Oracle Liquidation Health Scaffold
 
 Date: 2026-06-24
