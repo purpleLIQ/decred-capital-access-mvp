@@ -13,6 +13,11 @@ import {
   type HeadlessLifecycleEventSource,
 } from "./headless-lifecycle-events";
 import { applyHeadlessLifecycleEvent } from "./headless-lifecycle-transitions";
+import {
+  attachIntegrityResultToEvent,
+  validateLifecycleEventIntegrity,
+  type LifecycleEventIntegrityResult,
+} from "./lifecycle-event-integrity";
 
 const eventKindSchema = z.enum([
   "borrower_quote_accepted",
@@ -38,6 +43,7 @@ const eventKindSchema = z.enum([
   "evidence_timestamp_anchored",
   "evidence_timestamp_verified",
   "evidence_timestamp_failed",
+  "lifecycle_event_integrity_checked",
 ]);
 
 const eventSourceSchema = z.enum(["borrower", "supplier", "arbiter", "operator", "watcher", "oracle", "system"]);
@@ -54,6 +60,7 @@ const supplierDisbursementVerifierSchema = z.enum(["valid", "missing", "amount_m
 const repaymentVerifierSchema = z.enum(["valid_full_repayment", "valid_partial_repayment", "missing", "amount_mismatch", "destination_mismatch", "asset_mismatch", "token_contract_mismatch", "unconfirmed", "stale", "reorged"]);
 const liquidationHealthStatusSchema = z.enum(["healthy", "watch", "warning", "margin_call", "liquidation_eligible", "arbiter_window_open", "auto_liquidation_pending", "resolved", "blocked", "liquidation_review"]);
 const warningWindowStatusSchema = z.enum(["not_required", "warning_open", "top_up_requested", "grace_expired", "resolved", "blocked"]);
+const lifecycleEventIntegrityStatusSchema = z.enum(["accepted", "duplicate", "replayed", "stale", "out_of_order", "unsafe_transition", "contradictory", "missing_required_context", "needs_manual_review"]);
 
 const eventSubmitSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120),
@@ -130,6 +137,14 @@ const eventSubmitSchema = z.object({
     shouldOpenArbiterReview: z.boolean().optional(),
     liquidationReviewEligible: z.boolean().optional(),
     automaticLiquidationBlocked: z.boolean().optional(),
+    integrityStatus: lifecycleEventIntegrityStatusSchema.optional(),
+    integrityApplied: z.boolean().optional(),
+    integrityReason: z.string().trim().max(1000).optional(),
+    integrityAuditNote: z.string().trim().max(1000).optional(),
+    integrityOriginalEventId: z.string().trim().max(200).optional(),
+    integrityAffectedSections: z.array(z.string().trim().max(120)).optional(),
+    integrityManualReviewRecommended: z.boolean().optional(),
+    arbiterDecisionId: z.string().trim().max(200).optional(),
   }),
   observedAt: z.string().datetime().optional(),
   createdAt: z.string().datetime().optional(),
@@ -155,7 +170,7 @@ export async function submitHeadlessLifecycleEvent(
     lifecycleStore?: HeadlessLifecycleStore;
     eventStore?: HeadlessLifecycleEventStore;
   } = {},
-): Promise<LifecycleEventApiResult<{ event: HeadlessLifecycleEvent; record: HeadlessLoanLifecycleRecord; affectedSection: string }>> {
+): Promise<LifecycleEventApiResult<{ event: HeadlessLifecycleEvent; record: HeadlessLoanLifecycleRecord; affectedSection: string; integrity: LifecycleEventIntegrityResult }>> {
   const parsed = eventSubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, status: 400, error: formatSchemaError(parsed.error) };
 
@@ -171,10 +186,30 @@ export async function submitHeadlessLifecycleEvent(
     externalReference: parsed.data.externalReference,
     safetyAuditNote: parsed.data.safetyAuditNote,
   });
-  const result = await applyHeadlessLifecycleEvent(event, lifecycleStore);
+  const existingRecord = await lifecycleStore.findByLookupCode(event.lookupCode);
+  if (!existingRecord) return { ok: false, status: 404, error: "Loan reference not found." };
+
+  const integrity = await validateLifecycleEventIntegrity({ event, record: existingRecord, eventStore });
+  const eventWithIntegrity = attachIntegrityResultToEvent(event, integrity);
+
+  if (!integrity.applied) {
+    const savedNoOpEvent = integrity.status === "duplicate" ? eventWithIntegrity : await eventStore.save(eventWithIntegrity);
+    return {
+      ok: true,
+      status: 202,
+      data: {
+        event: savedNoOpEvent,
+        record: existingRecord,
+        affectedSection: getAffectedLifecycleSection(event.kind),
+        integrity,
+      },
+    };
+  }
+
+  const result = await applyHeadlessLifecycleEvent(eventWithIntegrity, lifecycleStore);
   if (!result) return { ok: false, status: 404, error: "Loan reference not found." };
 
-  const savedEvent = await eventStore.save(event);
+  const savedEvent = await eventStore.save(eventWithIntegrity);
 
   return {
     ok: true,
@@ -183,6 +218,7 @@ export async function submitHeadlessLifecycleEvent(
       event: savedEvent,
       record: result.record,
       affectedSection: result.affectedSection,
+      integrity,
     },
   };
 }

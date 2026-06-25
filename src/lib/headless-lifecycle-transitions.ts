@@ -47,6 +47,9 @@ function transitionRecord(record: HeadlessLoanLifecycleRecord, event: HeadlessLi
     case "borrower_contact_updated":
       return touch(record, updatedAt);
 
+    case "lifecycle_event_integrity_checked":
+      return touch(record, updatedAt);
+
     case "oracle_price_observed":
       return touch({
         ...record,

@@ -4,6 +4,11 @@ import type { HeadlessLifecycleEvent } from "./headless-lifecycle-events";
 
 export interface HeadlessLifecycleEventStore {
   save(event: HeadlessLifecycleEvent): Promise<HeadlessLifecycleEvent>;
+  findByEventId?(eventId: string): Promise<HeadlessLifecycleEvent | null>;
+  findByExternalReference?(lookupCode: string, externalReference: string): Promise<HeadlessLifecycleEvent | null>;
+  findByWatcherEventId?(lookupCode: string, watcherEventId: string): Promise<HeadlessLifecycleEvent | null>;
+  findByHealthResultId?(lookupCode: string, healthResultId: string): Promise<HeadlessLifecycleEvent | null>;
+  findByArbiterDecisionId?(lookupCode: string, arbiterDecisionId: string): Promise<HeadlessLifecycleEvent | null>;
   listByLookupCode(lookupCode: string, limit?: number): Promise<HeadlessLifecycleEvent[]>;
   listRecent(limit?: number): Promise<HeadlessLifecycleEvent[]>;
 }
@@ -23,6 +28,30 @@ export function createLocalLifecycleEventStore(): HeadlessLifecycleEventStore {
       const nextEvents = [event, ...events.filter((existing) => existing.id !== event.id)];
       persistEvents(nextEvents);
       return event;
+    },
+
+    async findByEventId(eventId) {
+      return loadEvents().find((event) => event.id === eventId) ?? null;
+    },
+
+    async findByExternalReference(lookupCode, externalReference) {
+      const normalized = normalizeLookupCode(lookupCode);
+      return loadEvents().find((event) => normalizeLookupCode(event.lookupCode) === normalized && event.externalReference === externalReference) ?? null;
+    },
+
+    async findByWatcherEventId(lookupCode, watcherEventId) {
+      const normalized = normalizeLookupCode(lookupCode);
+      return loadEvents().find((event) => normalizeLookupCode(event.lookupCode) === normalized && event.payload.watcherEventId === watcherEventId) ?? null;
+    },
+
+    async findByHealthResultId(lookupCode, healthResultId) {
+      const normalized = normalizeLookupCode(lookupCode);
+      return loadEvents().find((event) => normalizeLookupCode(event.lookupCode) === normalized && event.payload.healthResultId === healthResultId) ?? null;
+    },
+
+    async findByArbiterDecisionId(lookupCode, arbiterDecisionId) {
+      const normalized = normalizeLookupCode(lookupCode);
+      return loadEvents().find((event) => normalizeLookupCode(event.lookupCode) === normalized && event.payload.arbiterDecisionId === arbiterDecisionId) ?? null;
     },
 
     async listByLookupCode(lookupCode, limit = 20) {
