@@ -4,8 +4,8 @@
 
 1. **Date:** 2026-07-07
 2. **Branch:** `simnet-proof-readiness-scaffold`
-3. **PR URL, if opened:** Pending until branch push/PR creation.
-4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+3. **PR URL, if opened:** https://github.com/purpleLIQ/decred-capital-access-mvp/pull/99
+4. **Latest commit SHA:** Implementation commit at PR creation: `374193144ddf4e84da098b3edd57be73c4cc1653`. The final pushed handoff-update commit SHA is listed in the final Codex output because a commit cannot contain its own hash without changing it.
 5. **Summary:**
    - Added a review-only simnet proof readiness scaffold for stored headless lifecycle records.
    - Added pure readiness derivation from collateral, platform fee, evidence, arbiter/review, repayment/release, lifecycle event, and review-case state.
@@ -59,7 +59,7 @@
    - Ops can seed/refresh a proof session from a stored lifecycle record.
    - Ops can see proof status, checklist items, blockers, next safe operator action, unsigned preview placeholder, signing placeholder, signed-hex placeholder, verification placeholder, and hard broadcast block.
 12. **What remains:**
-   - Push branch and open PR titled `Add simnet proof readiness scaffold`.
+   - Monitor GitHub PR checks and address any CI-only failures.
    - Review whether release precondition should require full repayment/release readiness or allow other future proof types.
    - Future branch should define unsigned preview data structures and verification expectations without enabling execution.
 13. **Recommended next Foreman action:**
