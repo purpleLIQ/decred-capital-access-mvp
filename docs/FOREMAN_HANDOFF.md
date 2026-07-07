@@ -1,5 +1,87 @@
 # Foreman Handoff
 
+## Current Handoff: Simnet Proof Readiness
+
+1. **Date:** 2026-07-07
+2. **Branch:** `simnet-proof-readiness-scaffold`
+3. **PR URL, if opened:** Pending until branch push/PR creation.
+4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+5. **Summary:**
+   - Added a review-only simnet proof readiness scaffold for stored headless lifecycle records.
+   - Added pure readiness derivation from collateral, platform fee, evidence, arbiter/review, repayment/release, lifecycle event, and review-case state.
+   - Added deterministic fixture proof session creation.
+   - Added a small replaceable local proof-session store and API helper seam.
+   - Added an ops API route to list/read and seed/refresh proof sessions from existing lifecycle records.
+   - Added an ops-facing proof readiness panel to each lifecycle record card.
+   - Added a practical simnet proof readiness doc.
+6. **Files changed:**
+   - `src/lib/simnet-proof-readiness.ts`
+   - `src/lib/simnet-proof-readiness-store.ts`
+   - `src/lib/simnet-proof-readiness-api.ts`
+   - `src/app/api/simnet-proof-readiness/route.ts`
+   - `src/components/simnet-proof-readiness-panel.tsx`
+   - `src/components/ops-lifecycle-records.tsx`
+   - `src/lib/__tests__/simnet-proof-readiness.test.ts`
+   - `src/lib/__tests__/simnet-proof-readiness-api.test.ts`
+   - `src/components/__tests__/simnet-proof-readiness-panel.test.tsx`
+   - `src/components/__tests__/ops-lifecycle-records.test.tsx`
+   - `docs/SIMNET_PROOF_READINESS.md`
+   - `docs/FOREMAN_HANDOFF.md`
+7. **Checks run:**
+   - `npm test -- --run src/lib/__tests__/simnet-proof-readiness.test.ts src/lib/__tests__/simnet-proof-readiness-api.test.ts src/components/__tests__/simnet-proof-readiness-panel.test.tsx src/components/__tests__/ops-lifecycle-records.test.tsx`
+   - `npm test`
+   - `npm run lint`
+   - `npm run build`
+   - `npm run verify`
+   - `npm run verify:protocol`
+   - `npm run safety:check`
+   - `git diff --check`
+8. **Passing checks:**
+   - Focused simnet proof readiness/API/UI tests passed: 4 files, 11 tests.
+   - Full test suite passed: 49 files, 271 tests.
+   - Lint exited successfully.
+   - Build passed.
+   - Combined verify passed.
+   - Protocol verify passed: 8 files, 61 tests.
+   - Safety advisory check passed.
+   - Git whitespace check passed.
+9. **Failing checks and exact errors, if any:**
+   - No failing checks.
+   - `npm run lint` still reports 13 pre-existing warnings in older files for unused imports/unused `_section`/`_patch` test parameters.
+10. **Safety boundary:**
+   - Every proof session remains review-only.
+   - Broadcast is always blocked.
+   - Signing session, signed-hex submission, and signature verification are placeholders and remain blocked.
+   - No live Decred RPC, wallet integration, private keys, seed/mnemonic/passphrase handling, wallet unlock, app-side signing, broadcast, mainnet, real transactions, collateral release execution, liquidation execution, real fund movement, or arbiter payout automation was added.
+11. **What is complete:**
+   - Readiness model and deterministic session model exist.
+   - Readiness is derived from the existing lifecycle/review/event surface without mutating lifecycle records.
+   - Ops can seed/refresh a proof session from a stored lifecycle record.
+   - Ops can see proof status, checklist items, blockers, next safe operator action, unsigned preview placeholder, signing placeholder, signed-hex placeholder, verification placeholder, and hard broadcast block.
+12. **What remains:**
+   - Push branch and open PR titled `Add simnet proof readiness scaffold`.
+   - Review whether release precondition should require full repayment/release readiness or allow other future proof types.
+   - Future branch should define unsigned preview data structures and verification expectations without enabling execution.
+13. **Recommended next Foreman action:**
+   - Review the PR for safety boundaries first, then inspect whether the readiness gates match the intended future simnet proof flow.
+   - Confirm the UI makes `Broadcast blocked` and `No signing, no broadcast, no real funds` obvious.
+14. **Recommended next developer prompt:**
+
+```text
+Review branch simnet-proof-readiness-scaffold and PR "Add simnet proof readiness scaffold".
+
+Confirm the simnet proof readiness scaffold is review-only, derives state from existing lifecycle/event/review records, never mutates lifecycle records from the pure helper, and keeps signing, signed-hex submission, signature verification, broadcast, mainnet, collateral release execution, liquidation execution, and real fund movement blocked.
+
+Run:
+- npm run verify
+- npm run verify:protocol
+- npm run safety:check
+
+If checks pass, review mapping choices for collateral, platform fee, evidence, review, and release precondition gates. Do not add wallet/RPC/signing/broadcast/mainnet/liquidation/collateral release execution or real fund movement.
+```
+
+---
+
 ## Current Handoff: Integrity Review Routing
 
 1. **Date:** 2026-07-07

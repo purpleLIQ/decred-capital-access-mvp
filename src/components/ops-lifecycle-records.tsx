@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArbiterReviewQueue } from "@/components/arbiter-review-queue";
 import { LifecycleEventHistory } from "@/components/lifecycle-event-history";
+import { SimnetProofReadinessPanel } from "@/components/simnet-proof-readiness-panel";
 import type { HeadlessLoanLifecycleRecord } from "@/lib/headless-loan-lifecycle";
 import type { LiquidationHealthFixtureScenarioName, SubmittedLiquidationHealthFixtureScenario } from "@/lib/oracle-liquidation-health-fixtures";
 
@@ -129,6 +130,7 @@ function LifecycleRecordCard({ record, onRecordUpdated }: { record: HeadlessLoan
       </div>
       <LiquidationHealthScenarioControl record={record} onRecordUpdated={onRecordUpdated} />
       <OracleHealthPanel record={record} />
+      <SimnetProofReadinessPanel record={record} />
     </article>
   );
 }
