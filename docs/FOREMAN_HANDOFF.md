@@ -4,8 +4,8 @@
 
 1. **Date:** 2026-07-07
 2. **Branch name:** `integrity-review-routing`
-3. **PR URL, if opened:** Pending until branch push/PR creation.
-4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+3. **PR URL, if opened:** https://github.com/purpleLIQ/decred-capital-access-mvp/pull/98
+4. **Latest commit SHA:** Implementation commit at PR creation: `968e6942fe31f8833b361294ddb082b95eae6758`. The final pushed handoff-update commit SHA is listed in the final Codex output because a commit cannot contain its own hash without changing it.
 5. **Summary of completed work:**
    - Added deterministic integrity review-intent routing from the central lifecycle event submission path.
    - Kept integrity validation separate from arbiter/review case creation.
@@ -35,12 +35,21 @@
    - `npm test`
    - `npm run build`
    - `npm run lint`
+   - `npm run verify`
+   - `npm run verify:protocol`
+   - `npm run safety:check`
+   - `git diff --check`
+   - `git diff --cached --check`
 9. **Passing checks:**
    - Targeted lifecycle integrity tests passed: 14 tests.
    - Targeted adjacent tests passed: 10 tests.
    - Full test suite passed: 46 files, 262 tests.
    - Build passed.
    - Lint exited successfully.
+   - Combined verify passed.
+   - Protocol verify passed: 8 files, 61 tests.
+   - Safety advisory check passed.
+   - Git whitespace checks passed.
 10. **Failing checks and exact errors, if any:**
    - No failing checks at this point.
    - `npm run lint` still reports 13 pre-existing warnings in older files for unused imports/unused `_section`/`_patch` test parameters.
@@ -58,9 +67,8 @@
    - Ops history renders review metadata.
    - Borrower-facing copy remains simple and safe.
 13. **What remains:**
-   - Run the combined `npm run verify` after this handoff update.
-   - Commit and push the branch.
-   - Open the PR titled `Route integrity failures to arbiter review`.
+   - Monitor GitHub PR checks and address any CI-only failures.
+   - Merge after review if checks stay green and the mapping choices are accepted.
    - Phase 2 simnet proof readiness was not started in this branch.
 14. **Known risks or review points:**
    - The central submit API now accepts an optional `arbiterStore`; existing callers can ignore it and production uses the default store.
