@@ -25,5 +25,6 @@ describe("OpsLifecycleRecords", () => {
     expect(source).toContain("Submit scenario");
     expect(source).toContain("/api/oracle-liquidation-health/fixture-scenario");
     expect(source).toContain("Automatic liquidation remains blocked");
+    expect(source).toContain("SimnetProofReadinessPanel");
   });
 });
