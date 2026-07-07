@@ -5,6 +5,7 @@ import type { HeadlessLifecycleStore } from "./headless-lifecycle-store";
 import { headlessLifecycleStore } from "./headless-lifecycle-store";
 import type { HeadlessLifecycleEventStore } from "./lifecycle-event-store";
 import { lifecycleEventStore } from "./lifecycle-event-store";
+import type { ArbiterCaseStore } from "./arbiter-case-store";
 import {
   createHeadlessLifecycleEvent,
   getAffectedLifecycleSection,
@@ -18,6 +19,11 @@ import {
   validateLifecycleEventIntegrity,
   type LifecycleEventIntegrityResult,
 } from "./lifecycle-event-integrity";
+import {
+  attachIntegrityReviewMetadataToEvent,
+  routeIntegrityReview,
+  type IntegrityReviewMetadata,
+} from "./integrity-review-routing";
 
 const eventKindSchema = z.enum([
   "borrower_quote_accepted",
@@ -61,6 +67,7 @@ const repaymentVerifierSchema = z.enum(["valid_full_repayment", "valid_partial_r
 const liquidationHealthStatusSchema = z.enum(["healthy", "watch", "warning", "margin_call", "liquidation_eligible", "arbiter_window_open", "auto_liquidation_pending", "resolved", "blocked", "liquidation_review"]);
 const warningWindowStatusSchema = z.enum(["not_required", "warning_open", "top_up_requested", "grace_expired", "resolved", "blocked"]);
 const lifecycleEventIntegrityStatusSchema = z.enum(["accepted", "duplicate", "replayed", "stale", "out_of_order", "unsafe_transition", "contradictory", "missing_required_context", "needs_manual_review"]);
+const arbiterCaseTypeSchema = z.enum(["collateral_issue", "platform_fee_issue", "supplier_disbursement_issue", "repayment_dispute", "liquidation_health_review", "evidence_incomplete", "watcher_stale_or_reorged", "manual_review"]);
 
 const eventSubmitSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120),
@@ -144,6 +151,14 @@ const eventSubmitSchema = z.object({
     integrityOriginalEventId: z.string().trim().max(200).optional(),
     integrityAffectedSections: z.array(z.string().trim().max(120)).optional(),
     integrityManualReviewRecommended: z.boolean().optional(),
+    integrityReview: z.object({
+      recommended: z.boolean(),
+      action: z.enum(["none", "opened", "linked"]).optional(),
+      caseId: z.string().trim().max(160).optional(),
+      caseType: arbiterCaseTypeSchema.optional(),
+      borrowerSummary: z.string().trim().max(1000).optional(),
+      operatorSummary: z.string().trim().max(1000).optional(),
+    }).optional(),
     arbiterDecisionId: z.string().trim().max(200).optional(),
   }),
   observedAt: z.string().datetime().optional(),
@@ -169,8 +184,9 @@ export async function submitHeadlessLifecycleEvent(
   stores: {
     lifecycleStore?: HeadlessLifecycleStore;
     eventStore?: HeadlessLifecycleEventStore;
+    arbiterStore?: ArbiterCaseStore;
   } = {},
-): Promise<LifecycleEventApiResult<{ event: HeadlessLifecycleEvent; record: HeadlessLoanLifecycleRecord; affectedSection: string; integrity: LifecycleEventIntegrityResult }>> {
+): Promise<LifecycleEventApiResult<{ event: HeadlessLifecycleEvent; record: HeadlessLoanLifecycleRecord; affectedSection: string; integrity: LifecycleEventIntegrityResult; integrityReview: IntegrityReviewMetadata }>> {
   const parsed = eventSubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, status: 400, error: formatSchemaError(parsed.error) };
 
@@ -191,25 +207,51 @@ export async function submitHeadlessLifecycleEvent(
 
   const integrity = await validateLifecycleEventIntegrity({ event, record: existingRecord, eventStore });
   const eventWithIntegrity = attachIntegrityResultToEvent(event, integrity);
+  const integrityReview = await routeIntegrityReview({
+    event: eventWithIntegrity,
+    record: existingRecord,
+    integrity,
+    arbiterStore: stores.arbiterStore,
+  });
+  const eventWithReview = attachIntegrityReviewMetadataToEvent(eventWithIntegrity, integrityReview);
+  let recordForResponse = existingRecord;
+
+  if (integrityReview.recommended && integrityReview.action === "opened" && integrityReview.caseId) {
+    const reviewSubmitted = await submitHeadlessLifecycleEvent({
+      lookupCode: existingRecord.lookupCode,
+      kind: "arbiter_review_requested",
+      source: "system",
+      observedAt: event.observedAt,
+      createdAt: addMilliseconds(event.createdAt, 1),
+      externalReference: integrityReview.caseId,
+      safetyAuditNote: "Integrity review routing opened an arbiter/manual-review case only. No signing, broadcast, liquidation execution, collateral release execution, or funds movement occurred.",
+      payload: {
+        detail: `Integrity review ${integrityReview.action}: ${integrityReview.caseType ?? "manual_review"}. ${integrityReview.borrowerSummary ?? "Review in progress"}`,
+        reviewId: integrityReview.caseId,
+      },
+    }, { lifecycleStore, eventStore, arbiterStore: stores.arbiterStore });
+    if (reviewSubmitted.ok && reviewSubmitted.data?.record) recordForResponse = reviewSubmitted.data.record;
+  }
 
   if (!integrity.applied) {
-    const savedNoOpEvent = integrity.status === "duplicate" ? eventWithIntegrity : await eventStore.save(eventWithIntegrity);
+    const savedNoOpEvent = integrity.status === "duplicate" ? eventWithReview : await eventStore.save(eventWithReview);
     return {
       ok: true,
       status: 202,
       data: {
         event: savedNoOpEvent,
-        record: existingRecord,
+        record: recordForResponse,
         affectedSection: getAffectedLifecycleSection(event.kind),
         integrity,
+        integrityReview,
       },
     };
   }
 
-  const result = await applyHeadlessLifecycleEvent(eventWithIntegrity, lifecycleStore);
+  const result = await applyHeadlessLifecycleEvent(eventWithReview, lifecycleStore);
   if (!result) return { ok: false, status: 404, error: "Loan reference not found." };
 
-  const savedEvent = await eventStore.save(eventWithIntegrity);
+  const savedEvent = await eventStore.save(eventWithReview);
 
   return {
     ok: true,
@@ -219,8 +261,14 @@ export async function submitHeadlessLifecycleEvent(
       record: result.record,
       affectedSection: result.affectedSection,
       integrity,
+      integrityReview,
     },
   };
+}
+
+function addMilliseconds(iso: string, milliseconds: number): string {
+  const timestamp = Date.parse(iso);
+  return Number.isNaN(timestamp) ? new Date().toISOString() : new Date(timestamp + milliseconds).toISOString();
 }
 
 export async function listHeadlessLifecycleEvents(

@@ -1,5 +1,91 @@
 # Foreman Handoff
 
+## Current Handoff: Integrity Review Routing
+
+1. **Date:** 2026-07-07
+2. **Branch name:** `integrity-review-routing`
+3. **PR URL, if opened:** Pending until branch push/PR creation.
+4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+5. **Summary of completed work:**
+   - Added deterministic integrity review-intent routing from the central lifecycle event submission path.
+   - Kept integrity validation separate from arbiter/review case creation.
+   - Reused the existing arbiter review case store and queue model.
+   - Added duplicate-case prevention by linking repeated blocked integrity events to the existing open case for the same loan/case type.
+   - Added compact `integrityReview` metadata to lifecycle event API results and stored event payloads.
+   - Added ops event-history visibility for review recommendation, opened/linked status, case id, case type, borrower-safe summary, and operator summary.
+   - Preserved borrower lookup safety by not exposing raw integrity labels in borrower-facing copy.
+6. **Files changed:**
+   - `src/lib/integrity-review-routing.ts`
+   - `src/lib/headless-lifecycle-event-api.ts`
+   - `src/lib/headless-lifecycle-events.ts`
+   - `src/components/lifecycle-event-history.tsx`
+   - `src/lib/__tests__/lifecycle-event-integrity.test.ts`
+   - `docs/FOREMAN_HANDOFF.md`
+7. **Files inspected but not changed:**
+   - `src/lib/lifecycle-event-integrity.ts`
+   - `src/lib/arbiter-review-cases.ts`
+   - `src/lib/arbiter-case-api.ts`
+   - `src/lib/arbiter-case-store.ts`
+   - `src/lib/lifecycle-event-store.ts`
+   - `src/components/headless-borrower-lifecycle.tsx`
+   - `src/app/api/headless-loans/event-log/route.ts`
+8. **Checks run:**
+   - `npm test -- --run src/lib/__tests__/lifecycle-event-integrity.test.ts`
+   - `npm test -- --run src/lib/__tests__/arbiter-review-cases.test.ts src/lib/__tests__/headless-lifecycle-events.test.ts src/lib/__tests__/oracle-liquidation-health-operator-api.test.ts`
+   - `npm test`
+   - `npm run build`
+   - `npm run lint`
+9. **Passing checks:**
+   - Targeted lifecycle integrity tests passed: 14 tests.
+   - Targeted adjacent tests passed: 10 tests.
+   - Full test suite passed: 46 files, 262 tests.
+   - Build passed.
+   - Lint exited successfully.
+10. **Failing checks and exact errors, if any:**
+   - No failing checks at this point.
+   - `npm run lint` still reports 13 pre-existing warnings in older files for unused imports/unused `_section`/`_patch` test parameters.
+11. **Safety boundary confirmation:**
+   - No live oracle providers were added.
+   - No Decred/BTC/EVM RPC calls were added.
+   - No wallet integration, seed/mnemonic/passphrase handling, wallet unlock, private-key handling, signing, broadcast, mainnet broadcast, liquidation execution, collateral release execution, real fund movement, or arbiter payout automation was added.
+   - New review routing opens or links review scaffolding only.
+12. **What is complete:**
+   - Phase 1 integrity failure to review routing is implemented.
+   - `unsafe_transition`, `contradictory`, `stale`, `out_of_order`, `missing_required_context`, and `needs_manual_review` can map to existing arbiter case types.
+   - Harmless `duplicate` and `replayed` no-ops do not create review cases.
+   - Repeated blocked integrity events for the same loan/category reuse the existing open case.
+   - API responses include compact `integrityReview` metadata.
+   - Ops history renders review metadata.
+   - Borrower-facing copy remains simple and safe.
+13. **What remains:**
+   - Run the combined `npm run verify` after this handoff update.
+   - Commit and push the branch.
+   - Open the PR titled `Route integrity failures to arbiter review`.
+   - Phase 2 simnet proof readiness was not started in this branch.
+14. **Known risks or review points:**
+   - The central submit API now accepts an optional `arbiterStore`; existing callers can ignore it and production uses the default store.
+   - New review cases are opened directly through the existing arbiter case store and a standard `arbiter_review_requested` event is recorded only when a new case is opened.
+   - Reused/linked review cases update related lifecycle/watcher event ids, but no escalation/SLA/severity/assignment logic was added.
+   - The latest commit SHA cannot be self-referential inside this committed handoff section; use the final Codex output and PR head SHA as source of truth.
+15. **Recommended next Foreman action:**
+   - Review PR checks and inspect that blocked integrity events open/link exactly one existing arbiter queue case per loan/case type.
+   - Confirm no unsafe execution path was introduced.
+   - If Phase 1 is accepted, consider a separate Phase 2 branch for simnet proof readiness scaffolding only.
+16. **Recommended next developer prompt:**
+
+```text
+Review branch integrity-review-routing and PR "Route integrity failures to arbiter review".
+
+Verify that integrity validation remains separate from review case creation, that derive/route integrity review intent reuses the existing arbiter case store, and that duplicate/replayed no-ops do not create cases. Confirm blocked stale/contradictory/out-of-order/unsafe events open or link one existing review case per loan/category, ops event history renders the linked case metadata, and borrower lookup does not expose raw integrity labels.
+
+Run:
+- npm run verify
+
+Do not add wallet/RPC/signing/broadcast/mainnet/liquidation/collateral release execution or real fund movement.
+```
+
+---
+
 ## Current Handoff: Lifecycle Event Integrity Gate
 
 Date: 2026-06-25

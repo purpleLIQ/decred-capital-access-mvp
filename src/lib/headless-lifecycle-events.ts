@@ -12,6 +12,25 @@ export type LifecycleEventIntegrityStatus =
   | "missing_required_context"
   | "needs_manual_review";
 
+export type IntegrityReviewCaseType =
+  | "collateral_issue"
+  | "platform_fee_issue"
+  | "supplier_disbursement_issue"
+  | "repayment_dispute"
+  | "liquidation_health_review"
+  | "evidence_incomplete"
+  | "watcher_stale_or_reorged"
+  | "manual_review";
+
+export interface IntegrityReviewEventMetadata {
+  recommended: boolean;
+  action?: "none" | "opened" | "linked";
+  caseId?: string;
+  caseType?: IntegrityReviewCaseType;
+  borrowerSummary?: string;
+  operatorSummary?: string;
+}
+
 export type HeadlessLifecycleEventKind =
   | "borrower_quote_accepted"
   | "borrower_contact_updated"
@@ -130,6 +149,7 @@ export interface HeadlessLifecycleEventPayload {
   integrityOriginalEventId?: string;
   integrityAffectedSections?: string[];
   integrityManualReviewRecommended?: boolean;
+  integrityReview?: IntegrityReviewEventMetadata;
   arbiterDecisionId?: string;
 }
 
