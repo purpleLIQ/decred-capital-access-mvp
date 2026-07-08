@@ -4,6 +4,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArbiterReviewQueue } from "@/components/arbiter-review-queue";
+import { GuidedOperatorDemoScenarioPanel } from "@/components/guided-operator-demo-scenario-panel";
 import { LifecycleEventHistory } from "@/components/lifecycle-event-history";
 import { SimnetProofReadinessPanel } from "@/components/simnet-proof-readiness-panel";
 import type { HeadlessLoanLifecycleRecord } from "@/lib/headless-loan-lifecycle";
@@ -128,6 +129,7 @@ function LifecycleRecordCard({ record, onRecordUpdated }: { record: HeadlessLoan
           <p className="mt-2 text-white/75">{record.nextSupplierOperatorAction}</p>
         </div>
       </div>
+      <GuidedOperatorDemoScenarioPanel record={record} onRecordUpdated={onRecordUpdated} />
       <LiquidationHealthScenarioControl record={record} onRecordUpdated={onRecordUpdated} />
       <OracleHealthPanel record={record} />
       <SimnetProofReadinessPanel record={record} />
