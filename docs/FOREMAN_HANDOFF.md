@@ -1,5 +1,89 @@
 # Foreman Handoff
 
+## Current Handoff: Guided Operator Demo Scenario
+
+1. **Date:** 2026-07-08
+2. **Branch:** `guided-operator-demo-scenario`
+3. **PR URL, if opened:** Pending until branch push/PR creation.
+4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+5. **Summary:**
+   - Added a deterministic operator-only guided demo scenario across the existing lifecycle, watcher, oracle-health, arbiter-review, and simnet proof readiness seams.
+   - Added pure planning/status helpers for guided demo scenario state.
+   - Added an operator API route to read scenario status, run the next safe fixture step, run the full safe demo, refresh status, or seed a demo lifecycle record.
+   - Added an ops lifecycle-record panel showing phase, completed steps, next safe action, emitted event ids, review case ids, proof session id, and hard broadcast block.
+   - Added focused tests for planning, sequencing, orchestration, idempotency, borrower-safe status, UI rendering, and safety boundaries.
+   - Added a concise practical doc for the guided operator demo scenario.
+6. **Files changed:**
+   - `src/lib/guided-operator-demo-scenario.ts`
+   - `src/app/api/guided-operator-demo-scenario/route.ts`
+   - `src/components/guided-operator-demo-scenario-panel.tsx`
+   - `src/components/ops-lifecycle-records.tsx`
+   - `src/lib/__tests__/guided-operator-demo-scenario.test.ts`
+   - `src/components/__tests__/guided-operator-demo-scenario-panel.test.tsx`
+   - `src/components/__tests__/ops-lifecycle-records.test.tsx`
+   - `docs/GUIDED_OPERATOR_DEMO_SCENARIO.md`
+   - `docs/FOREMAN_HANDOFF.md`
+7. **Checks run:**
+   - `npm test -- --run src/lib/__tests__/guided-operator-demo-scenario.test.ts src/components/__tests__/guided-operator-demo-scenario-panel.test.tsx src/components/__tests__/ops-lifecycle-records.test.tsx`
+   - `npm test`
+   - `npm run lint`
+   - `npm run build`
+   - `npm run verify`
+   - `npm run verify:protocol`
+   - `npm run safety:check`
+   - `git diff --check`
+8. **Passing checks:**
+   - Focused guided scenario module/UI tests passed: 3 files, 9 tests.
+   - Full test suite passed: 51 files, 278 tests.
+   - Lint exited successfully.
+   - Build passed.
+   - Combined verify passed.
+   - Protocol verify passed: 8 files, 61 tests.
+   - Safety advisory check passed.
+9. **Failing checks and exact errors, if any:**
+   - No failing checks.
+   - `npm run lint` still reports 13 pre-existing warnings in older files for unused imports/unused `_section`/`_patch` test parameters.
+10. **Safety boundary:**
+   - Guided scenario actions are fixture-only and review-only.
+   - Lifecycle-affecting actions route through the existing lifecycle event API/integrity gate.
+   - Oracle/liquidation-health uses the existing fixture helper.
+   - Arbiter review uses the existing review-case path.
+   - Simnet proof readiness uses the existing refresh helper.
+   - No live Decred/BTC/EVM/oracle RPC, wallet integration, private keys, seed/mnemonic/passphrase handling, wallet unlock, app-side signing, broadcast, mainnet, real transactions, collateral release execution, liquidation execution, real fund movement, arbiter payout automation, new lifecycle system, new event system, or new review system was added.
+11. **What is complete:**
+   - Operators can inspect a guided scenario for a stored lifecycle record.
+   - Operators can run one next safe fixture step or the full safe demo path.
+   - The scenario emits/derives Decred collateral, platform-fee, borrow-asset disbursement, oracle health, evidence/timestamp, arbiter review, and simnet readiness state.
+   - Duplicate runs stay idempotent under existing event/case gates in focused tests.
+   - Borrower-safe scenario status remains simple.
+12. **What remains:**
+   - Push branch and open PR titled `Add guided operator demo scenario`.
+   - Review whether the demo should include a repayment fixture in a future separate scenario, since this milestone follows the requested disbursement-to-proof-readiness path and keeps release proof readiness review-only/blocked where appropriate.
+13. **Known risks/review points:**
+   - The guided demo currently uses one deterministic happy/control-plane path, not multiple presets.
+   - Simnet proof readiness may remain blocked if review/release preconditions are not satisfied, which is intentional for this review-only milestone.
+   - The seeded record path is available through the API seam but the visible panel operates on already stored lifecycle records.
+14. **Recommended next Foreman action:**
+   - Review the PR for reuse of existing event/review/proof seams and confirm no parallel mutation path was introduced.
+   - Verify the ops panel is clear enough for internal/community demos.
+   - Decide whether a future branch should add a repayment-inclusive guided scenario preset.
+15. **Recommended next developer prompt:**
+
+```text
+Review branch guided-operator-demo-scenario and PR "Add guided operator demo scenario".
+
+Confirm the guided operator demo scenario runs only fixture/demo actions, routes lifecycle-affecting steps through submitHeadlessLifecycleEvent and the integrity gate, reuses existing oracle-health, arbiter-review, and simnet proof readiness helpers, and does not introduce signing, broadcast, mainnet, collateral release execution, liquidation execution, wallet/key handling, or real fund movement.
+
+Run:
+- npm run verify
+- npm run verify:protocol
+- npm run safety:check
+
+Then inspect the ops lifecycle records page and verify the Guided demo scenario panel shows current phase, completed/blocked steps, next action, emitted event ids, arbiter case id, simnet proof session id, Broadcast blocked, and No signing/no real funds copy.
+```
+
+---
+
 ## Current Handoff: Simnet Proof Readiness
 
 1. **Date:** 2026-07-07
