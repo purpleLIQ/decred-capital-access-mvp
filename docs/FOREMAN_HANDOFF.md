@@ -4,8 +4,8 @@
 
 1. **Date:** 2026-07-08
 2. **Branch:** `guided-operator-demo-scenario`
-3. **PR URL, if opened:** Pending until branch push/PR creation.
-4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+3. **PR URL, if opened:** https://github.com/purpleLIQ/decred-capital-access-mvp/pull/100
+4. **Latest commit SHA:** Implementation commit at PR creation: `138dcefa7e233ec2820e02bb14613f494a18b8ec`. The final pushed handoff-update commit SHA is listed in the final Codex output because a commit cannot contain its own hash without changing it.
 5. **Summary:**
    - Added a deterministic operator-only guided demo scenario across the existing lifecycle, watcher, oracle-health, arbiter-review, and simnet proof readiness seams.
    - Added pure planning/status helpers for guided demo scenario state.
@@ -57,7 +57,7 @@
    - Duplicate runs stay idempotent under existing event/case gates in focused tests.
    - Borrower-safe scenario status remains simple.
 12. **What remains:**
-   - Push branch and open PR titled `Add guided operator demo scenario`.
+   - Monitor GitHub PR checks and address any CI-only failures.
    - Review whether the demo should include a repayment fixture in a future separate scenario, since this milestone follows the requested disbursement-to-proof-readiness path and keeps release proof readiness review-only/blocked where appropriate.
 13. **Known risks/review points:**
    - The guided demo currently uses one deterministic happy/control-plane path, not multiple presets.
