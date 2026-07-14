@@ -4,8 +4,8 @@
 
 1. **Date:** 2026-07-14
 2. **Branch:** `repayment-guided-demo-scenario`
-3. **PR URL, if opened:** Pending until branch push/PR creation.
-4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+3. **PR URL, if opened:** https://github.com/purpleLIQ/decred-capital-access-mvp/pull/101
+4. **Latest commit SHA:** Implementation commit at PR creation: `23d07969f1d5a942473ecc68a189681d2895308f`. The final pushed handoff-update commit SHA is listed in the final Codex output because a commit cannot contain its own hash without changing it.
 5. **Summary:**
    - Extended the guided operator demo scenario to support typed presets: `control_plane` and `repayment_release_readiness`.
    - Kept the existing control-plane guided scenario behavior intact.
@@ -54,7 +54,7 @@
    - Ops panel renders preset, repayment status, release-readiness status, proof status, event ids, case ids, proof session id, and hard broadcast block.
    - Borrower-safe copy stays simple and does not expose fixture/watcher/oracle/integrity/simnet/signed-hex/broadcast internals.
 12. **What remains:**
-   - Push branch and open PR titled `Add repayment guided demo scenario`.
+   - Monitor GitHub PR checks and address any CI-only failures.
    - Review whether future presets should include partial repayment, disputed repayment, or top-up paths in separate branches.
 13. **Known risks/review points:**
    - The repayment preset uses one deterministic full-repayment path only.
@@ -67,7 +67,7 @@
 15. **Recommended next developer prompt:**
 
 ```text
-Review branch repayment-guided-demo-scenario and PR "Add repayment guided demo scenario".
+Review branch repayment-guided-demo-scenario and PR #101, "Add repayment guided demo scenario".
 
 Confirm the new repayment_release_readiness preset preserves the existing control_plane preset, routes full repayment through the borrow-asset watcher/lifecycle event path, marks collateral release readiness as review-only through submitHeadlessLifecycleEvent, refreshes simnet proof readiness after repayment/release readiness, and keeps signing, signed hex, broadcast, mainnet, collateral release execution, liquidation execution, wallet/key handling, and real fund movement blocked.
 
