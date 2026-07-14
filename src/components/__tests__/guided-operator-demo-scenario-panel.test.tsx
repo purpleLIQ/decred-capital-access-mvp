@@ -18,9 +18,12 @@ describe("GuidedOperatorDemoScenarioPanel", () => {
 
     expect(markup).toContain("Guided demo scenario");
     expect(markup).toContain("Run next");
-    expect(markup).toContain("Run safe demo");
+    expect(markup).toContain("Run selected preset");
+    expect(markup).toContain("Run repayment preset");
+    expect(markup).toContain("Repayment");
+    expect(markup).toContain("Release readiness");
+    expect(markup).toContain("Proof readiness");
     expect(markup).toContain("Phase");
-    expect(markup).toContain("Review case");
     expect(markup).toContain("Proof session");
     expect(markup).toContain("Broadcast blocked");
     expect(markup).toContain("No signing, no broadcast, no real funds");

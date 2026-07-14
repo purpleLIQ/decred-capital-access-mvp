@@ -1,10 +1,15 @@
 # Guided Operator Demo Scenario
 
-This scenario gives operators one deterministic demo path across the current DCA control plane.
+This scenario gives operators deterministic demo paths across the current DCA control plane.
 
 It is fixture-only and review-only. It does not call live Decred, Bitcoin, EVM, or oracle RPC. It does not use wallets, private keys, signing, broadcast, mainnet, collateral release execution, liquidation execution, or real funds.
 
-## Flow
+## Presets
+
+- `control_plane`: collateral, platform fee, supplier disbursement, health, evidence, arbiter visibility, and proof readiness refresh.
+- `repayment_release_readiness`: collateral, platform fee, supplier disbursement, health, evidence, full repayment observation, collateral release readiness review, and proof readiness refresh.
+
+## Repayment Flow
 
 ```text
 stored lifecycle record
@@ -13,7 +18,8 @@ stored lifecycle record
 -> borrow-asset supplier disbursement fixture
 -> oracle/liquidation-health fixture
 -> evidence/timestamp placeholder
--> arbiter review visibility
+-> full repayment fixture
+-> collateral release readiness review
 -> simnet proof readiness refresh
 -> broadcast remains blocked
 ```
@@ -25,8 +31,12 @@ Open the ops lifecycle records page and use the `Guided demo scenario` panel on 
 The panel shows:
 
 - current phase,
+- selected preset,
 - completed and blocked steps,
 - next safe operator action,
+- repayment status,
+- release-readiness status,
+- proof readiness status,
 - emitted lifecycle event ids,
 - linked arbiter case ids,
 - simnet proof session id,
@@ -37,7 +47,8 @@ The panel has fixture/demo actions only:
 
 - `Refresh`
 - `Run next`
-- `Run safe demo`
+- `Run selected preset`
+- `Run repayment preset`
 
 ## Safety Rules
 
@@ -45,7 +56,9 @@ The panel has fixture/demo actions only:
 - Oracle/liquidation-health uses the existing fixture helper.
 - Arbiter review uses the existing review-case path.
 - Simnet proof readiness uses the existing refresh helper.
-- Borrower-facing status stays simple, such as `Loan setup in progress`, `Collateral review in progress`, `Loan health review in progress`, or `Proof readiness review in progress`.
+- Repayment observation uses the existing borrow-asset watcher fixture/lifecycle event path.
+- Collateral release readiness is review-only. It is not release execution.
+- Borrower-facing status stays simple, such as `Loan setup in progress`, `Funds sent review in progress`, `Repayment review in progress`, `Release review in progress`, `Proof readiness review in progress`, or `Loan completed, release review pending`.
 - Broadcast stays blocked.
 
 ## Review Notes

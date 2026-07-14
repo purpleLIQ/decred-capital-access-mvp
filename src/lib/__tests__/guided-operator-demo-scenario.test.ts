@@ -18,8 +18,9 @@ describe("guided operator demo scenario", () => {
     const record = demoRecord();
     const plan = createGuidedOperatorDemoPlan(record);
 
-    expect(plan.scenarioId).toBe("guided-demo-dcl260708usdc1000");
+    expect(plan.scenarioId).toBe("guided-demo-control_plane-dcl260708usdc1000");
     expect(plan.scenarioName).toBe("Guided operator demo scenario");
+    expect(plan.scenarioType).toBe("control_plane");
     expect(plan.lookupCode).toBe(record.lookupCode);
     expect(plan.nextStepId).toBe("decred_collateral_fixture");
     expect(plan.steps.map((step) => step.id)).toEqual([
@@ -30,6 +31,26 @@ describe("guided operator demo scenario", () => {
       "oracle_health_fixture",
       "evidence_timestamp_fixture",
       "arbiter_review_visibility",
+      "simnet_proof_readiness",
+    ]);
+  });
+
+  it("creates a repayment release readiness preset plan", () => {
+    const record = demoRecord();
+    const plan = createGuidedOperatorDemoPlan(record, "repayment_release_readiness");
+
+    expect(plan.scenarioId).toBe("guided-demo-repayment_release_readiness-dcl260708usdc1000");
+    expect(plan.scenarioName).toBe("Repayment guided demo scenario");
+    expect(plan.scenarioType).toBe("repayment_release_readiness");
+    expect(plan.steps.map((step) => step.id)).toEqual([
+      "seed_or_select_record",
+      "decred_collateral_fixture",
+      "dcr_platform_fee_fixture",
+      "borrow_asset_disbursement_fixture",
+      "oracle_health_fixture",
+      "evidence_timestamp_fixture",
+      "repayment_observed_fixture",
+      "collateral_release_readiness_review",
       "simnet_proof_readiness",
     ]);
   });
@@ -65,6 +86,41 @@ describe("guided operator demo scenario", () => {
     expect(result.data?.safetyNote).toContain("No signing");
   });
 
+  it("runs the repayment preset through repayment observation release readiness and proof refresh", async () => {
+    const stores = createStores(demoRecord());
+    const result = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", scenarioType: "repayment_release_readiness", now: "2026-07-08T14:00:00.000Z" }, stores);
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.scenario.scenarioType).toBe("repayment_release_readiness");
+    expect(result.data?.record.repaymentDetection.status).toBe("detected");
+    expect(result.data?.record.collateralRelease.status).toBe("ready");
+    expect(result.data?.submittedEvents.some((event) => event.kind === "repayment_observed")).toBe(true);
+    expect(result.data?.submittedEvents.some((event) => event.kind === "collateral_release_ready")).toBe(true);
+    expect(result.data?.scenario.repaymentStatus).toBe("detected");
+    expect(result.data?.scenario.releaseReadinessStatus).toBe("ready");
+    expect(result.data?.scenario.proofReadinessStatus).toBe("broadcast_review_blocked");
+    expect(result.data?.proofSession?.releasePreconditionStatus).toBe("ready");
+    expect(result.data?.proofSession?.unsignedReleasePreviewStatus).toBe("ready");
+    expect(result.data?.proofSession?.broadcastReviewStatus).toBe("blocked");
+    expect(result.data?.scenario.borrowerSafeStatus).toBe("Loan completed, release review pending");
+  });
+
+  it("sequences repayment preset next steps through repayment and release readiness", async () => {
+    const stores = createStores(demoRecord());
+    for (let index = 0; index < 5; index += 1) {
+      await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_next", scenarioType: "repayment_release_readiness", now: "2026-07-08T15:00:00.000Z" }, stores);
+    }
+    const firstRepaymentStep = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_next", scenarioType: "repayment_release_readiness", now: "2026-07-08T15:00:00.000Z" }, stores);
+
+    expect(firstRepaymentStep.data?.submittedEvents.map((event) => event.kind)).toEqual(["repayment_observed"]);
+    expect(firstRepaymentStep.data?.record.repaymentDetection.status).toBe("detected");
+    expect(firstRepaymentStep.data?.scenario.nextStepId).toBe("collateral_release_readiness_review");
+
+    const releaseStep = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_next", scenarioType: "repayment_release_readiness", now: "2026-07-08T15:00:00.000Z" }, stores);
+    expect(releaseStep.data?.submittedEvents.map((event) => event.kind)).toEqual(["collateral_release_ready"]);
+    expect(releaseStep.data?.scenario.nextStepId).toBe("simnet_proof_readiness");
+  });
+
   it("keeps duplicate scenario runs idempotent under existing event and case gates", async () => {
     const stores = createStores(demoRecord());
     const first = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", now: "2026-07-08T14:00:00.000Z" }, stores);
@@ -79,13 +135,25 @@ describe("guided operator demo scenario", () => {
     expect(second.data?.scenario.simnetProofSessionId).toBe(first.data?.scenario.simnetProofSessionId);
   });
 
+  it("keeps duplicate repayment preset runs safely idempotent", async () => {
+    const stores = createStores(demoRecord());
+    const first = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", scenarioType: "repayment_release_readiness", now: "2026-07-08T14:00:00.000Z" }, stores);
+    const second = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", scenarioType: "repayment_release_readiness", now: "2026-07-08T14:00:00.000Z" }, stores);
+    const events = await stores.eventStore.listByLookupCode(demoRecord().lookupCode, 100);
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    expect(new Set(events.map((event) => event.id)).size).toBe(events.length);
+    expect(second.data?.scenario.simnetProofSessionId).toBe(first.data?.scenario.simnetProofSessionId);
+  });
+
   it("derives borrower-safe copy without raw watcher oracle integrity internals", async () => {
     const stores = createStores(demoRecord());
     const result = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", now: "2026-07-08T14:00:00.000Z" }, stores);
     const status = result.data?.scenario.borrowerSafeStatus ?? "";
     const serialized = JSON.stringify({ status }).toLowerCase();
 
-    expect(["Loan setup in progress", "Collateral review in progress", "Repayment review in progress", "Loan health review in progress", "Proof readiness review in progress"]).toContain(status);
+    expect(["Loan setup in progress", "Funds sent review in progress", "Collateral review in progress", "Repayment review in progress", "Release review in progress", "Loan health review in progress", "Proof readiness review in progress", "Loan completed, release review pending"]).toContain(status);
     expect(serialized).not.toContain("watcher");
     expect(serialized).not.toContain("oracle");
     expect(serialized).not.toContain("integrity");
