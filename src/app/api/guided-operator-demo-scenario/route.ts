@@ -9,7 +9,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const lookupCode = url.searchParams.get("lookupCode");
   if (!lookupCode) return NextResponse.json({ error: "lookupCode is required." }, { status: 400 });
-  const result = await readGuidedOperatorDemoScenario({ lookupCode });
+  const result = await readGuidedOperatorDemoScenario({
+    lookupCode,
+    scenarioType: url.searchParams.get("scenarioType") ?? undefined,
+  });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json(result.data, { status: result.status });
 }

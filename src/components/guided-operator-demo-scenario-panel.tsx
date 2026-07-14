@@ -2,7 +2,7 @@
 
 import { Play, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { GuidedOperatorDemoAction, GuidedOperatorDemoScenario } from "@/lib/guided-operator-demo-scenario";
+import type { GuidedOperatorDemoAction, GuidedOperatorDemoScenario, GuidedOperatorDemoScenarioType } from "@/lib/guided-operator-demo-scenario";
 import type { HeadlessLoanLifecycleRecord } from "@/lib/headless-loan-lifecycle";
 
 export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { record: HeadlessLoanLifecycleRecord; onRecordUpdated: (record: HeadlessLoanLifecycleRecord) => void }) {
@@ -10,13 +10,14 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
   const [busyAction, setBusyAction] = useState<GuidedOperatorDemoAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [scenarioType, setScenarioType] = useState<GuidedOperatorDemoScenarioType>("control_plane");
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadScenario() {
       try {
-        const response = await fetch(`/api/guided-operator-demo-scenario?lookupCode=${encodeURIComponent(record.lookupCode)}`, { cache: "no-store" });
+        const response = await fetch(`/api/guided-operator-demo-scenario?lookupCode=${encodeURIComponent(record.lookupCode)}&scenarioType=${scenarioType}`, { cache: "no-store" });
         const data = (await response.json()) as { scenario?: GuidedOperatorDemoScenario; error?: string };
         if (!response.ok) throw new Error(data.error ?? "Could not load guided demo scenario.");
         if (!cancelled) setScenario(data.scenario ?? null);
@@ -29,9 +30,9 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
     return () => {
       cancelled = true;
     };
-  }, [record.lookupCode]);
+  }, [record.lookupCode, scenarioType]);
 
-  async function submitAction(action: GuidedOperatorDemoAction) {
+  async function submitAction(action: GuidedOperatorDemoAction, overrideScenarioType = scenarioType) {
     setBusyAction(action);
     setError(null);
     setNote(null);
@@ -39,7 +40,7 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
       const response = await fetch("/api/guided-operator-demo-scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lookupCode: record.lookupCode, action }),
+        body: JSON.stringify({ lookupCode: record.lookupCode, action, scenarioType: overrideScenarioType }),
       });
       const data = (await response.json()) as { scenario?: GuidedOperatorDemoScenario; record?: HeadlessLoanLifecycleRecord; safetyNote?: string; error?: string };
       if (!response.ok || !data.scenario || !data.record) throw new Error(data.error ?? "Could not run guided demo scenario.");
@@ -63,9 +64,13 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
             <ShieldCheck className="h-4 w-4" />
             Guided demo scenario
           </p>
-          <p className="mt-1 text-sm text-white/60">Operator-only fixture workflow across lifecycle, watcher, oracle, review, and simnet readiness state.</p>
+          <p className="mt-1 text-sm text-white/60">Operator-only fixture workflow across lifecycle, watcher, oracle, review, repayment, release readiness, and proof state.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <select className="h-10 rounded-md border border-[#70cbff]/20 bg-[#0c1d55] px-3 text-sm text-white" onChange={(event) => setScenarioType(event.target.value as GuidedOperatorDemoScenarioType)} value={scenarioType}>
+            <option value="control_plane">Control plane</option>
+            <option value="repayment_release_readiness">Repayment release readiness</option>
+          </select>
           <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#70cbff]/25 px-3 text-sm font-semibold text-white disabled:opacity-60" disabled={Boolean(busyAction)} onClick={() => void submitAction("refresh")}>
             <RefreshCw className="h-4 w-4" />
             {busyAction === "refresh" ? "Refreshing" : "Refresh"}
@@ -76,16 +81,26 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
           </button>
           <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#2ED6A1] px-3 text-sm font-semibold text-[#091440] disabled:opacity-60" disabled={Boolean(busyAction)} onClick={() => void submitAction("run_all")}>
             <Play className="h-4 w-4" />
-            {busyAction === "run_all" ? "Running" : "Run safe demo"}
+            {busyAction === "run_all" ? "Running" : "Run selected preset"}
+          </button>
+          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#70cbff] px-3 text-sm font-semibold text-[#091440] disabled:opacity-60" disabled={Boolean(busyAction)} onClick={() => {
+            setScenarioType("repayment_release_readiness");
+            void submitAction("run_all", "repayment_release_readiness");
+          }}>
+            <Play className="h-4 w-4" />
+            Run repayment preset
           </button>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-5">
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <Metric label="Preset" value={currentScenario?.scenarioType ? formatStatus(currentScenario.scenarioType) : formatStatus(scenarioType)} />
         <Metric label="Phase" value={currentScenario?.phase ?? "not loaded"} />
         <Metric label="Completed" value={currentScenario ? `${currentScenario.completedStepCount}/${currentScenario.steps.length}` : "0/0"} />
         <Metric label="Next action" value={currentScenario?.nextSafeOperatorAction ?? "Refresh scenario"} />
-        <Metric label="Review case" value={currentScenario?.arbiterCaseIds[0] ?? "none"} />
+        <Metric label="Repayment" value={currentScenario?.repaymentStatus ?? record.repaymentDetection.status} />
+        <Metric label="Release readiness" value={currentScenario?.releaseReadinessStatus ?? record.collateralRelease.status} />
+        <Metric label="Proof readiness" value={currentScenario?.proofReadinessStatus ? formatStatus(currentScenario.proofReadinessStatus) : "not started"} />
         <Metric label="Proof session" value={currentScenario?.simnetProofSessionId ?? "none"} />
       </div>
 
@@ -110,6 +125,7 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/45">Scenario evidence</p>
             <div className="mt-3 grid gap-3">
               <Metric label="Borrower-safe status" value={currentScenario.borrowerSafeStatus} />
+              <Metric label="Selected preset" value={formatStatus(currentScenario.scenarioType)} />
               <Metric label="Event ids" value={currentScenario.eventIdsEmitted.length ? currentScenario.eventIdsEmitted.join(", ") : "none"} />
               <Metric label="Case ids" value={currentScenario.arbiterCaseIds.length ? currentScenario.arbiterCaseIds.join(", ") : "none"} />
               <Metric label="Broadcast" value="blocked" />

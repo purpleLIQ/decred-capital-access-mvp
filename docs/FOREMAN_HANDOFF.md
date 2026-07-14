@@ -1,5 +1,86 @@
 # Foreman Handoff
 
+## Current Handoff: Repayment Guided Demo Scenario
+
+1. **Date:** 2026-07-14
+2. **Branch:** `repayment-guided-demo-scenario`
+3. **PR URL, if opened:** https://github.com/purpleLIQ/decred-capital-access-mvp/pull/101
+4. **Latest commit SHA:** Implementation commit at PR creation: `23d07969f1d5a942473ecc68a189681d2895308f`. The final pushed handoff-update commit SHA is listed in the final Codex output because a commit cannot contain its own hash without changing it.
+5. **Summary:**
+   - Extended the guided operator demo scenario to support typed presets: `control_plane` and `repayment_release_readiness`.
+   - Kept the existing control-plane guided scenario behavior intact.
+   - Added repayment-inclusive fixture steps for full repayment observation and collateral release readiness review.
+   - Routed repayment through the existing borrow-asset watcher/lifecycle event path.
+   - Routed release readiness through `submitHeadlessLifecycleEvent(...)` with a review-only `collateral_release_ready` event.
+   - Updated the ops panel with preset selection, repayment status, release-readiness status, proof readiness status, and a dedicated repayment preset action.
+   - Updated tests and docs for the repayment/release-readiness loop.
+6. **Files changed:**
+   - `src/lib/guided-operator-demo-scenario.ts`
+   - `src/app/api/guided-operator-demo-scenario/route.ts`
+   - `src/components/guided-operator-demo-scenario-panel.tsx`
+   - `src/lib/__tests__/guided-operator-demo-scenario.test.ts`
+   - `src/components/__tests__/guided-operator-demo-scenario-panel.test.tsx`
+   - `docs/GUIDED_OPERATOR_DEMO_SCENARIO.md`
+   - `docs/FOREMAN_HANDOFF.md`
+7. **Checks run:**
+   - `npm test -- --run src/lib/__tests__/guided-operator-demo-scenario.test.ts src/components/__tests__/guided-operator-demo-scenario-panel.test.tsx src/components/__tests__/ops-lifecycle-records.test.tsx`
+   - `npm test`
+   - `npm run lint`
+   - `npm run build`
+   - `npm run verify`
+   - `npm run verify:protocol`
+   - `npm run safety:check`
+   - `git diff --check`
+8. **Passing checks:**
+   - Focused guided scenario module/UI tests passed: 3 files, 13 tests.
+   - Full test suite passed: 51 files, 282 tests.
+   - Lint exited successfully.
+   - Build passed.
+   - Combined verify passed.
+   - Protocol verify passed: 8 files, 61 tests.
+   - Safety advisory check passed.
+9. **Failing checks and exact errors, if any:**
+   - No failing checks.
+   - `npm run lint` still reports 13 pre-existing warnings in older files for unused imports/unused `_section`/`_patch` test parameters.
+10. **Safety boundary:**
+   - Repayment observation is fixture/review-only.
+   - Release readiness is not release execution.
+   - All lifecycle-affecting actions route through the existing lifecycle event API/integrity gate.
+   - No live Decred/BTC/EVM/oracle RPC, wallet integration, private keys, seed/mnemonic/passphrase handling, wallet unlock, app-side signing, broadcast, mainnet, real transactions, collateral release execution, liquidation execution, real fund movement, arbiter payout automation, new lifecycle system, new event system, or new review system was added.
+11. **What is complete:**
+   - `control_plane` preset remains available.
+   - `repayment_release_readiness` preset can progress through collateral, fee, disbursement, health, evidence, repayment, release readiness, and simnet proof readiness.
+   - Simnet proof readiness can show release-precondition progress after full repayment while broadcast remains blocked.
+   - Ops panel renders preset, repayment status, release-readiness status, proof status, event ids, case ids, proof session id, and hard broadcast block.
+   - Borrower-safe copy stays simple and does not expose fixture/watcher/oracle/integrity/simnet/signed-hex/broadcast internals.
+12. **What remains:**
+   - Monitor GitHub PR checks and address any CI-only failures.
+   - Review whether future presets should include partial repayment, disputed repayment, or top-up paths in separate branches.
+13. **Known risks/review points:**
+   - The repayment preset uses one deterministic full-repayment path only.
+   - Release readiness is represented by a review-only lifecycle event and must not be mistaken for release execution.
+   - Simnet proof readiness can show unsigned preview readiness, but signing and broadcast remain blocked by design.
+14. **Recommended next Foreman action:**
+   - Review the PR for preset ergonomics and safety boundaries first.
+   - Confirm repayment and release-readiness steps reuse the existing event/integrity path and do not directly mutate lifecycle records.
+   - Check that the ops panel is clear enough for an internal reviewer to run the repayment-inclusive demo without reading individual modules.
+15. **Recommended next developer prompt:**
+
+```text
+Review branch repayment-guided-demo-scenario and PR #101, "Add repayment guided demo scenario".
+
+Confirm the new repayment_release_readiness preset preserves the existing control_plane preset, routes full repayment through the borrow-asset watcher/lifecycle event path, marks collateral release readiness as review-only through submitHeadlessLifecycleEvent, refreshes simnet proof readiness after repayment/release readiness, and keeps signing, signed hex, broadcast, mainnet, collateral release execution, liquidation execution, wallet/key handling, and real fund movement blocked.
+
+Run:
+- npm run verify
+- npm run verify:protocol
+- npm run safety:check
+
+Then inspect the ops lifecycle records page and verify the Guided demo scenario panel shows selected preset, repayment status, release-readiness status, proof readiness status, event ids, case ids, proof session id, Broadcast blocked, and No signing/no real funds copy.
+```
+
+---
+
 ## Current Handoff: Guided Operator Demo Scenario
 
 1. **Date:** 2026-07-08
