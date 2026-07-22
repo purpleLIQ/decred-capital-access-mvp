@@ -4,8 +4,8 @@
 
 1. **Date:** 2026-07-22
 2. **Branch:** `guided-demo-exception-presets`
-3. **PR URL, if opened:** Pending until branch push/PR creation.
-4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+3. **PR URL, if opened:** https://github.com/purpleLIQ/decred-capital-access-mvp/pull/102
+4. **Latest commit SHA:** Implementation commit at PR creation: `8ea393caed4a92082377cf08835d02f9320876df`. The final pushed handoff-update commit SHA is listed in the final Codex output because a commit cannot contain its own hash without changing it.
 5. **Summary:**
    - Checked the latest GitHub PR state and confirmed PR #101, `Add repayment guided demo scenario`, is merged into `main`.
    - Fast-forwarded local `main` to include PR #101 before starting this branch.
@@ -71,7 +71,7 @@
    - `top_up_review` preset can run setup, top-up request, loan-health review visibility, and blocked proof readiness.
    - Existing happy/control presets remain available.
 13. **What remains:**
-   - Commit, push branch, open PR, and update this handoff with PR URL/final SHA.
+   - Monitor GitHub PR checks and address any CI-only failures.
    - Review whether future work should add a compact demo selector explanation or scenario result report export.
 14. **Known risks/review points:**
    - The top-up preset uses a deterministic guided-demo policy so it can reliably show a top-up request for the standard seeded loan.
@@ -85,7 +85,7 @@
 16. **Recommended next developer prompt:**
 
 ```text
-Review branch guided-demo-exception-presets and the PR titled "Add guided demo exception presets".
+Review branch guided-demo-exception-presets and PR #102, "Add guided demo exception presets".
 
 Confirm the new partial_repayment_review, repayment_dispute_review, and top_up_review presets preserve the existing control_plane and repayment_release_readiness presets. Verify partial repayment remains incomplete, repayment mismatch routes through lifecycle integrity/review without completing repayment, top-up uses oracle/liquidation-health review scaffolding only, and simnet proof readiness remains blocked for exception paths.
 
