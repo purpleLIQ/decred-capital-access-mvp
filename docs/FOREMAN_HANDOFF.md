@@ -1,5 +1,104 @@
 # Foreman Handoff
 
+## Current Handoff: Guided Demo Exception Presets
+
+1. **Date:** 2026-07-22
+2. **Branch:** `guided-demo-exception-presets`
+3. **PR URL, if opened:** Pending until branch push/PR creation.
+4. **Latest commit SHA:** Pending until final commit; final Codex output will list the exact pushed SHA.
+5. **Summary:**
+   - Checked the latest GitHub PR state and confirmed PR #101, `Add repayment guided demo scenario`, is merged into `main`.
+   - Fast-forwarded local `main` to include PR #101 before starting this branch.
+   - Extended the guided operator demo scenario with three review-only exception presets: `partial_repayment_review`, `repayment_dispute_review`, and `top_up_review`.
+   - Preserved the existing `control_plane` and `repayment_release_readiness` presets.
+   - Routed partial repayment and repayment mismatch steps through the existing borrow-asset watcher fixture and lifecycle event API/integrity gate.
+   - Routed repayment dispute visibility through the existing integrity/arbiter review case path.
+   - Routed top-up review through the existing oracle/liquidation-health fixture path with a deterministic guided-demo policy.
+   - Refreshed simnet proof readiness for exception paths while keeping release preconditions, signing, and broadcast blocked.
+   - Updated the ops panel preset selector, focused tests, and guided scenario docs.
+   - Patched dependency audit findings by updating Next/ESLint config within the 16.2 patch line, running `npm audit fix`, and adding a narrow `sharp` override to avoid the audit-suggested major Next downgrade.
+6. **Files changed:**
+   - `src/lib/guided-operator-demo-scenario.ts`
+   - `src/components/guided-operator-demo-scenario-panel.tsx`
+   - `src/lib/__tests__/guided-operator-demo-scenario.test.ts`
+   - `src/components/__tests__/guided-operator-demo-scenario-panel.test.tsx`
+   - `docs/GUIDED_OPERATOR_DEMO_SCENARIO.md`
+   - `docs/FOREMAN_HANDOFF.md`
+   - `package.json`
+   - `package-lock.json`
+7. **Files inspected but not changed:**
+   - `src/lib/borrow-asset-watcher-fixtures.ts`
+   - `src/lib/borrow-asset-watcher-adapter.ts`
+   - `src/lib/borrow-asset-watcher-verifiers.ts`
+   - `src/lib/headless-lifecycle-transitions.ts`
+   - `src/lib/lifecycle-event-integrity.ts`
+   - `src/lib/integrity-review-routing.ts`
+   - `src/lib/arbiter-case-api.ts`
+   - `src/lib/arbiter-review-cases.ts`
+   - `src/lib/oracle-liquidation-health-fixtures.ts`
+   - `src/lib/oracle-liquidation-health.ts`
+   - `src/lib/simnet-proof-readiness.ts`
+8. **Checks run:**
+   - `npm test -- --run src/lib/__tests__/guided-operator-demo-scenario.test.ts src/components/__tests__/guided-operator-demo-scenario-panel.test.tsx src/components/__tests__/ops-lifecycle-records.test.tsx`
+   - `npm test`
+   - `npm run lint`
+   - `npm run build`
+   - `npm run verify:protocol`
+   - `npm run safety:check`
+   - `npm run verify`
+9. **Passing checks:**
+   - Focused guided scenario module/UI tests passed: 3 files, 17 tests.
+   - Full test suite passed: 51 files, 286 tests.
+   - Lint exited successfully.
+   - Build passed on Next 16.2.11.
+   - Protocol verify passed: 8 files, 61 tests.
+   - Safety advisory check passed.
+   - Combined verify passed, including `npm audit` with 0 vulnerabilities.
+10. **Failing checks and exact errors, if any:**
+   - No failing checks remain.
+   - During development, the top-up test initially failed because the default guided loan was too healthy for the existing top-up fixture policy. The fix was to use a deterministic guided-demo top-up policy inside the preset, still through the existing oracle/liquidation-health fixture path.
+   - During development, `npm run verify` initially failed at `npm audit` for high-severity `brace-expansion`, `js-yaml`, and `sharp` advisories. `npm audit fix` resolved `brace-expansion`/`js-yaml`; `sharp` was resolved with a narrow `sharp@0.35.3` override because `npm audit fix --force` would have downgraded Next to 14.2.35.
+11. **Safety boundary:**
+   - Exception presets are fixture-only and review-only.
+   - Partial repayment does not mark full repayment complete.
+   - Repayment dispute/mismatch does not mutate repayment complete state and routes through integrity/review handling.
+   - Top-up review does not execute a top-up, liquidation, release, signing, broadcast, or fund movement.
+   - Simnet proof readiness may be refreshed, but release preconditions remain blocked for exception paths.
+   - No live Decred/BTC/EVM/oracle RPC, wallet integration, private keys, seed/mnemonic/passphrase handling, wallet unlock, app-side signing, broadcast, mainnet, real transactions, collateral release execution, liquidation execution, real fund movement, arbiter payout automation, new lifecycle system, new event system, or new review system was added.
+12. **What is complete:**
+   - `partial_repayment_review` preset can run setup, partial repayment, review visibility, and blocked proof readiness.
+   - `repayment_dispute_review` preset can run setup, repayment mismatch, repayment dispute review, and blocked proof readiness.
+   - `top_up_review` preset can run setup, top-up request, loan-health review visibility, and blocked proof readiness.
+   - Existing happy/control presets remain available.
+13. **What remains:**
+   - Commit, push branch, open PR, and update this handoff with PR URL/final SHA.
+   - Review whether future work should add a compact demo selector explanation or scenario result report export.
+14. **Known risks/review points:**
+   - The top-up preset uses a deterministic guided-demo policy so it can reliably show a top-up request for the standard seeded loan.
+   - The exception presets intentionally show blocked proof readiness; reviewers should not expect release preview readiness from partial, dispute, or top-up paths.
+   - The ops panel exposes more preset options, but the page has not been redesigned.
+   - The `sharp` dependency is pinned through npm overrides to clear the current audit finding without taking the audit-suggested breaking Next downgrade; keep an eye on future Next releases that may remove the need for the override.
+15. **Recommended next Foreman action:**
+   - Review whether the three exception presets are the right set for community/internal demos.
+   - Confirm the partial repayment and dispute paths cannot be confused with full repayment or release readiness.
+   - Confirm top-up remains a warning/review path only.
+16. **Recommended next developer prompt:**
+
+```text
+Review branch guided-demo-exception-presets and the PR titled "Add guided demo exception presets".
+
+Confirm the new partial_repayment_review, repayment_dispute_review, and top_up_review presets preserve the existing control_plane and repayment_release_readiness presets. Verify partial repayment remains incomplete, repayment mismatch routes through lifecycle integrity/review without completing repayment, top-up uses oracle/liquidation-health review scaffolding only, and simnet proof readiness remains blocked for exception paths.
+
+Run:
+- npm run verify
+- npm run verify:protocol
+- npm run safety:check
+
+Do not add wallet/RPC/signing/broadcast/mainnet/collateral release execution/liquidation execution/real fund movement.
+```
+
+---
+
 ## Current Handoff: Repayment Guided Demo Scenario
 
 1. **Date:** 2026-07-14

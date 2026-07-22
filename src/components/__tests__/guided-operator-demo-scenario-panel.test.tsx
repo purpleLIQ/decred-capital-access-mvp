@@ -20,6 +20,9 @@ describe("GuidedOperatorDemoScenarioPanel", () => {
     expect(markup).toContain("Run next");
     expect(markup).toContain("Run selected preset");
     expect(markup).toContain("Run repayment preset");
+    expect(markup).toContain("Partial repayment review");
+    expect(markup).toContain("Repayment dispute review");
+    expect(markup).toContain("Top-up review");
     expect(markup).toContain("Repayment");
     expect(markup).toContain("Release readiness");
     expect(markup).toContain("Proof readiness");
