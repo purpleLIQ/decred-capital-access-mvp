@@ -64,12 +64,15 @@ export function GuidedOperatorDemoScenarioPanel({ record, onRecordUpdated }: { r
             <ShieldCheck className="h-4 w-4" />
             Guided demo scenario
           </p>
-          <p className="mt-1 text-sm text-white/60">Operator-only fixture workflow across lifecycle, watcher, oracle, review, repayment, release readiness, and proof state.</p>
+          <p className="mt-1 text-sm text-white/60">Operator-only fixture workflow across lifecycle, watcher, oracle, review, repayment, top-up, release readiness, and proof state.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <select className="h-10 rounded-md border border-[#70cbff]/20 bg-[#0c1d55] px-3 text-sm text-white" onChange={(event) => setScenarioType(event.target.value as GuidedOperatorDemoScenarioType)} value={scenarioType}>
             <option value="control_plane">Control plane</option>
             <option value="repayment_release_readiness">Repayment release readiness</option>
+            <option value="partial_repayment_review">Partial repayment review</option>
+            <option value="repayment_dispute_review">Repayment dispute review</option>
+            <option value="top_up_review">Top-up review</option>
           </select>
           <button className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#70cbff]/25 px-3 text-sm font-semibold text-white disabled:opacity-60" disabled={Boolean(busyAction)} onClick={() => void submitAction("refresh")}>
             <RefreshCw className="h-4 w-4" />

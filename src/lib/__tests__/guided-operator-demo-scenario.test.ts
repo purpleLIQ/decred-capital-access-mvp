@@ -55,6 +55,21 @@ describe("guided operator demo scenario", () => {
     ]);
   });
 
+  it("creates exception preset plans for partial repayment dispute and top-up review", () => {
+    const record = demoRecord();
+    const partial = createGuidedOperatorDemoPlan(record, "partial_repayment_review");
+    const dispute = createGuidedOperatorDemoPlan(record, "repayment_dispute_review");
+    const topUp = createGuidedOperatorDemoPlan(record, "top_up_review");
+
+    expect(partial.scenarioName).toBe("Partial repayment review scenario");
+    expect(partial.steps.map((step) => step.id)).toContain("partial_repayment_observed_fixture");
+    expect(dispute.scenarioName).toBe("Repayment dispute review scenario");
+    expect(dispute.steps.map((step) => step.id)).toContain("repayment_dispute_fixture");
+    expect(dispute.steps.map((step) => step.id)).toContain("repayment_dispute_review");
+    expect(topUp.scenarioName).toBe("Top-up review scenario");
+    expect(topUp.steps.map((step) => step.id)).toContain("top_up_requested_fixture");
+  });
+
   it("sequences the next safe fixture step from lifecycle state", async () => {
     const stores = createStores(demoRecord());
 
@@ -103,6 +118,51 @@ describe("guided operator demo scenario", () => {
     expect(result.data?.proofSession?.unsignedReleasePreviewStatus).toBe("ready");
     expect(result.data?.proofSession?.broadcastReviewStatus).toBe("blocked");
     expect(result.data?.scenario.borrowerSafeStatus).toBe("Loan completed, release review pending");
+  });
+
+  it("runs the partial repayment preset without marking release readiness complete", async () => {
+    const stores = createStores(demoRecord());
+    const result = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", scenarioType: "partial_repayment_review", now: "2026-07-22T12:00:00.000Z" }, stores);
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.scenario.scenarioType).toBe("partial_repayment_review");
+    expect(result.data?.record.repaymentDetection.status).toBe("partial");
+    expect(result.data?.record.collateralRelease.status).toBe("blocked");
+    expect(result.data?.scenario.borrowerSafeStatus).toBe("Proof readiness review in progress");
+    expect(result.data?.proofSession?.releasePreconditionStatus).toBe("blocked");
+    expect(result.data?.proofSession?.unsignedReleasePreviewStatus).toBe("blocked");
+    expect(result.data?.proofSession?.broadcastReviewStatus).toBe("blocked");
+    expect(result.data?.submittedEvents.some((event) => event.kind === "repayment_observed" && event.payload.repaymentVerifierStatus === "valid_partial_repayment")).toBe(true);
+  });
+
+  it("runs the repayment dispute preset through integrity review without changing repayment state", async () => {
+    const stores = createStores(demoRecord());
+    const result = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", scenarioType: "repayment_dispute_review", now: "2026-07-22T13:00:00.000Z" }, stores);
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.scenario.scenarioType).toBe("repayment_dispute_review");
+    expect(result.data?.record.repaymentDetection.status).toBe("watcher_placeholder");
+    expect(result.data?.record.collateralRelease.status).toBe("blocked");
+    expect(result.data?.arbiterCases.some((reviewCase) => reviewCase.caseType === "repayment_dispute")).toBe(true);
+    expect(result.data?.scenario.arbiterCaseIds).toContain("arb-0708usdc1000-repayment_dispute");
+    expect(result.data?.proofSession?.releasePreconditionStatus).toBe("blocked");
+    expect(result.data?.proofSession?.broadcastReviewStatus).toBe("blocked");
+    expect(result.data?.submittedEvents.some((event) => event.kind === "repayment_observed" && event.payload.integrityApplied === false)).toBe(true);
+  });
+
+  it("runs the top-up review preset through existing oracle health and arbiter review seams", async () => {
+    const stores = createStores(demoRecord());
+    const result = await runGuidedOperatorDemoAction({ lookupCode: demoRecord().lookupCode, action: "run_all", scenarioType: "top_up_review", now: "2026-07-22T14:00:00.000Z" }, stores);
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.scenario.scenarioType).toBe("top_up_review");
+    expect(result.data?.record.borrowerWarningWindow.status).toBe("top_up_requested");
+    expect(result.data?.record.borrowerWarningWindow.topUpRequested).toBe(true);
+    expect(result.data?.record.collateralRelease.status).toBe("blocked");
+    expect(result.data?.submittedEvents.some((event) => event.kind === "top_up_requested")).toBe(true);
+    expect(result.data?.arbiterCases.some((reviewCase) => reviewCase.caseType === "liquidation_health_review")).toBe(true);
+    expect(result.data?.proofSession?.releasePreconditionStatus).toBe("blocked");
+    expect(result.data?.proofSession?.broadcastReviewStatus).toBe("blocked");
   });
 
   it("sequences repayment preset next steps through repayment and release readiness", async () => {

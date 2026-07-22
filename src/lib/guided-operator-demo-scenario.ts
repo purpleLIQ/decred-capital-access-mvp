@@ -16,6 +16,7 @@ import { headlessLifecycleStore } from "./headless-lifecycle-store";
 import type { HeadlessLoanLifecycleRecord } from "./headless-loan-lifecycle";
 import type { HeadlessLifecycleEventStore } from "./lifecycle-event-store";
 import { lifecycleEventStore } from "./lifecycle-event-store";
+import { DEFAULT_LIQUIDATION_HEALTH_POLICY } from "./oracle-liquidation-health";
 import { submitFixtureLiquidationHealthScenario } from "./oracle-liquidation-health-fixtures";
 import { refreshSimnetProofSession } from "./simnet-proof-readiness-api";
 import type { SimnetProofSession } from "./simnet-proof-readiness";
@@ -29,12 +30,21 @@ export type GuidedOperatorDemoStepId =
   | "borrow_asset_disbursement_fixture"
   | "oracle_health_fixture"
   | "evidence_timestamp_fixture"
+  | "partial_repayment_observed_fixture"
   | "repayment_observed_fixture"
+  | "repayment_dispute_fixture"
+  | "repayment_dispute_review"
+  | "top_up_requested_fixture"
   | "collateral_release_readiness_review"
   | "arbiter_review_visibility"
   | "simnet_proof_readiness";
 
-export type GuidedOperatorDemoScenarioType = "control_plane" | "repayment_release_readiness";
+export type GuidedOperatorDemoScenarioType =
+  | "control_plane"
+  | "repayment_release_readiness"
+  | "partial_repayment_review"
+  | "repayment_dispute_review"
+  | "top_up_review";
 export type GuidedOperatorDemoStepStatus = "complete" | "available" | "blocked";
 export type GuidedOperatorDemoAction = "seed_record" | "run_next" | "run_all" | "refresh";
 
@@ -101,12 +111,19 @@ const SAFETY_NOTES = [
   "No wallet integration, private keys, seed phrases, wallet unlock, app-side signing, broadcast, mainnet, collateral release execution, liquidation execution, real transactions, or fund movement is enabled.",
   "Broadcast blocked. No signing, no broadcast, no real funds.",
 ];
+const GUIDED_TOP_UP_POLICY = {
+  ...DEFAULT_LIQUIDATION_HEALTH_POLICY,
+  policyVersion: "guided-top-up-review-fixture-policy",
+  safeLtvBps: 4_500,
+  warningLtvBps: 5_500,
+  marginCallLtvBps: 6_000,
+};
 
 const DEFAULT_NOW = "2026-07-08T14:00:00.000Z";
 const seedSchema = z.object({
   now: z.string().datetime().optional(),
 });
-const scenarioTypeSchema = z.enum(["control_plane", "repayment_release_readiness"]);
+const scenarioTypeSchema = z.enum(["control_plane", "repayment_release_readiness", "partial_repayment_review", "repayment_dispute_review", "top_up_review"]);
 const actionSchema = z.object({
   lookupCode: z.string().trim().min(1).max(120).optional(),
   action: z.enum(["seed_record", "run_next", "run_all", "refresh"]).default("refresh"),
@@ -135,7 +152,7 @@ export function deriveGuidedOperatorDemoStatus(
 
   return {
     scenarioId: `guided-demo-${scenarioType}-${compactLookup(record.lookupCode)}`,
-    scenarioName: scenarioType === "repayment_release_readiness" ? "Repayment guided demo scenario" : "Guided operator demo scenario",
+    scenarioName: scenarioNameForType(scenarioType),
     scenarioType,
     lookupCode: record.lookupCode,
     phase: resolvePhase(steps, proofSession),
@@ -253,7 +270,7 @@ export async function runGuidedOperatorDemoAction(
   const submittedEvents: HeadlessLifecycleEvent[] = [];
   let currentRecord = loaded.record;
   let proofSession: SimnetProofSession | undefined = loaded.proofSessions[0];
-  const maxIterations = parsed.data.action === "run_all" ? (parsed.data.scenarioType === "repayment_release_readiness" ? 9 : 8) : 1;
+  const maxIterations = parsed.data.action === "run_all" ? 10 : 1;
 
   for (let index = 0; index < maxIterations; index += 1) {
     const latest = await loadScenarioInputs(currentRecord.lookupCode, stores);
@@ -335,7 +352,7 @@ async function runStep(
 
   if (stepId === "oracle_health_fixture") {
     const scenario = await submitFixtureLiquidationHealthScenario({
-      scenario: scenarioType === "repayment_release_readiness" ? "healthy_loan" : "arbiter_review_case_opened",
+      scenario: oracleHealthScenarioForType(scenarioType),
       record,
       now: observedAt,
       stores: { lifecycleStore, eventStore, arbiterStore },
@@ -391,6 +408,48 @@ async function runStep(
     return { record: submitted.record, submittedEvents: [submitted.event] };
   }
 
+  if (stepId === "partial_repayment_observed_fixture") {
+    const submitted = await submitFixtureLifecycleEvent(createFixtureBorrowAssetLifecycleEvent({
+      scenario: "valid_partial_repayment",
+      lookupCode: record.lookupCode,
+      lifecycle: record,
+      expectedDisbursement: expectedDisbursementTerms(record),
+      expectedRepayment: expectedRepaymentTerms(record),
+      observedAt,
+    }), stores);
+    return { record: submitted.record, submittedEvents: [submitted.event] };
+  }
+
+  if (stepId === "repayment_dispute_fixture") {
+    const submitted = await submitFixtureLifecycleEvent(createFixtureBorrowAssetLifecycleEvent({
+      scenario: "repayment_wrong_asset",
+      lookupCode: record.lookupCode,
+      lifecycle: record,
+      expectedDisbursement: expectedDisbursementTerms(record),
+      expectedRepayment: expectedRepaymentTerms(record),
+      observedAt,
+    }), stores);
+    return { record: submitted.record, submittedEvents: [submitted.event] };
+  }
+
+  if (stepId === "repayment_dispute_review") {
+    const reviewed = await deriveReviewVisibility(record, observedAt, stores, {
+      manualReviewReason: "Guided demo repayment dispute checkpoint. Review-only; no repayment recognition, release, signing, broadcast, or funds movement.",
+    });
+    return { record: reviewed.record, submittedEvents: reviewed.submittedEvents };
+  }
+
+  if (stepId === "top_up_requested_fixture") {
+    const scenario = await submitFixtureLiquidationHealthScenario({
+      scenario: "top_up_requested",
+      record,
+      now: observedAt,
+      policy: GUIDED_TOP_UP_POLICY,
+      stores: { lifecycleStore, eventStore, arbiterStore },
+    });
+    return { record: scenario.finalRecord, submittedEvents: [...scenario.submittedEvents, ...scenario.arbiterLifecycleEvents] };
+  }
+
   if (stepId === "collateral_release_readiness_review") {
     const submitted = await submitFixtureLifecycleEvent(createHeadlessLifecycleEvent({
       lookupCode: record.lookupCode,
@@ -408,16 +467,9 @@ async function runStep(
   }
 
   if (stepId === "arbiter_review_visibility") {
-    const recentEvents = await eventStore.listByLookupCode(record.lookupCode, 50);
-    await deriveAndStoreArbiterCases({
-      record,
-      recentEvents,
+    return deriveReviewVisibility(record, observedAt, stores, {
       manualReviewReason: "Guided demo review checkpoint for operator visibility. Review-only; no execution.",
-      now: observedAt,
-      stores: { lifecycleStore, eventStore, arbiterStore },
     });
-    const refreshed = await loadScenarioInputs(record.lookupCode, stores);
-    return { record: refreshed.record ?? record, submittedEvents: [] };
   }
 
   if (stepId === "simnet_proof_readiness") {
@@ -427,6 +479,30 @@ async function runStep(
   }
 
   return { record, submittedEvents };
+}
+
+async function deriveReviewVisibility(
+  record: HeadlessLoanLifecycleRecord,
+  observedAt: string,
+  stores: GuidedOperatorDemoStores,
+  options: { manualReviewReason: string },
+): Promise<{ record: HeadlessLoanLifecycleRecord; submittedEvents: HeadlessLifecycleEvent[] }> {
+  const lifecycleStore = stores.lifecycleStore ?? headlessLifecycleStore;
+  const eventStore = stores.eventStore ?? lifecycleEventStore;
+  const arbiterStore = stores.arbiterStore ?? arbiterCaseStore;
+  const recentEvents = await eventStore.listByLookupCode(record.lookupCode, 50);
+  const result = await deriveAndStoreArbiterCases({
+    record,
+    recentEvents,
+    manualReviewReason: options.manualReviewReason,
+    now: observedAt,
+    stores: { lifecycleStore, eventStore, arbiterStore },
+  });
+  const refreshed = await loadScenarioInputs(record.lookupCode, stores);
+  return {
+    record: refreshed.record ?? record,
+    submittedEvents: result.data?.lifecycleEvents ?? [],
+  };
 }
 
 async function submitFixtureLifecycleEvent(
@@ -473,8 +549,11 @@ function buildSteps(
   const hasDisbursement = record.supplierDisbursement.status === "disbursed" || hasEventKind(events, "supplier_disbursement_observed");
   const hasOracle = hasEventKind(events, "liquidation_health_updated") || record.oracleHealth.resultId !== "health-not-evaluated";
   const hasEvidence = record.evidenceBundle.status !== "placeholder" || record.evidenceBundle.timestamp.status === "verified" || hasEventKind(events, "evidence_timestamp_verified");
-  const hasRepayment = record.repaymentDetection.status === "detected" || hasEventKind(events, "repayment_observed");
+  const hasPartialRepayment = record.repaymentDetection.status === "partial" || hasPartialRepaymentEvent(events);
+  const hasRepayment = record.repaymentDetection.status === "detected" || hasFullRepaymentEvent(events);
+  const hasRepaymentDispute = hasRepaymentDisputeEvent(events);
   const hasReleaseReadiness = hasEventKind(events, "collateral_release_ready");
+  const hasTopUpRequest = record.borrowerWarningWindow.status === "top_up_requested" || hasEventKind(events, "top_up_requested");
   const hasReview = cases.length > 0 || record.arbiterReview.status === "requested" || record.arbiterReview.status === "resolved";
   const hasProof = Boolean(proofSession);
 
@@ -487,18 +566,41 @@ function buildSteps(
     step("evidence_timestamp_fixture", "Apply evidence/timestamp placeholder", hasEvidence ? "complete" : hasOracle ? "available" : "blocked", hasEvidence ? "Evidence/timestamp placeholder prepared." : "Submit placeholder evidence and timestamp events through lifecycle event API.", eventIds(events, "evidence_bundle_prepared", "evidence_timestamp_verified"), []),
   ];
 
-  const scenarioSteps = scenarioType === "repayment_release_readiness"
-    ? [
+  const scenarioSteps = (() => {
+    if (scenarioType === "repayment_release_readiness") return [
         ...commonOpeningSteps,
         step("repayment_observed_fixture", "Apply repayment observed fixture", hasRepayment ? "complete" : hasEvidence ? "available" : "blocked", hasRepayment ? "Repayment fixture observed." : "Submit full repayment fixture through lifecycle event API.", eventIds(events, "repayment_observed"), []),
         step("collateral_release_readiness_review", "Mark release readiness review", hasReleaseReadiness ? "complete" : hasRepayment ? "available" : "blocked", hasReleaseReadiness ? "Release readiness review event is recorded." : "Mark collateral release readiness as review-only. No release execution.", eventIds(events, "collateral_release_ready"), []),
         step("simnet_proof_readiness", "Seed/refresh simnet proof readiness", hasProof ? "complete" : hasReleaseReadiness ? "available" : "blocked", hasProof ? "Simnet proof readiness session exists." : "Refresh proof readiness from lifecycle, event, and review state.", [], [], proofSession?.proofSessionId),
-      ]
-    : [
+      ];
+
+    if (scenarioType === "partial_repayment_review") return [
+      ...commonOpeningSteps,
+      step("partial_repayment_observed_fixture", "Apply partial repayment fixture", hasPartialRepayment ? "complete" : hasEvidence ? "available" : "blocked", hasPartialRepayment ? "Partial repayment fixture observed." : "Submit partial repayment fixture through lifecycle event API.", eventIds(events, "repayment_observed"), []),
+      step("arbiter_review_visibility", "Show repayment review visibility", hasReview ? "complete" : hasPartialRepayment ? "available" : "blocked", hasReview ? "Repayment review case is visible." : "Open/link review-only repayment monitoring case if needed.", eventIds(events, "arbiter_review_requested"), cases.map((reviewCase) => reviewCase.caseId)),
+      step("simnet_proof_readiness", "Seed/refresh blocked proof readiness", hasProof ? "complete" : hasReview ? "available" : "blocked", hasProof ? "Simnet proof readiness session exists and remains blocked." : "Refresh proof readiness to show release precondition is still blocked.", [], [], proofSession?.proofSessionId),
+    ];
+
+    if (scenarioType === "repayment_dispute_review") return [
+      ...commonOpeningSteps,
+      step("repayment_dispute_fixture", "Apply repayment dispute fixture", hasRepaymentDispute ? "complete" : hasEvidence ? "available" : "blocked", hasRepaymentDispute ? "Repayment dispute fixture recorded as review/no-op metadata." : "Submit repayment mismatch fixture through lifecycle event API and integrity gate.", eventIds(events, "repayment_observed"), []),
+      step("repayment_dispute_review", "Show repayment dispute review", hasReview ? "complete" : hasRepaymentDispute ? "available" : "blocked", hasReview ? "Repayment dispute case is visible." : "Open/link repayment dispute review through existing arbiter case path.", eventIds(events, "arbiter_review_requested"), cases.map((reviewCase) => reviewCase.caseId)),
+      step("simnet_proof_readiness", "Seed/refresh blocked proof readiness", hasProof ? "complete" : hasReview ? "available" : "blocked", hasProof ? "Simnet proof readiness session exists and remains blocked." : "Refresh proof readiness to show dispute blocks release preview.", [], [], proofSession?.proofSessionId),
+    ];
+
+    if (scenarioType === "top_up_review") return [
+      ...commonOpeningSteps,
+      step("top_up_requested_fixture", "Apply top-up request fixture", hasTopUpRequest ? "complete" : hasEvidence ? "available" : "blocked", hasTopUpRequest ? "Top-up request fixture observed." : "Run existing oracle/liquidation-health top-up fixture. No top-up execution.", eventIds(events, "liquidation_health_updated", "borrower_warning_opened", "top_up_requested"), []),
+      step("arbiter_review_visibility", "Show top-up review visibility", hasReview ? "complete" : hasTopUpRequest ? "available" : "blocked", hasReview ? "Top-up or loan-health review case is visible." : "Open/link review-only top-up/health case if needed.", eventIds(events, "arbiter_review_requested"), cases.map((reviewCase) => reviewCase.caseId)),
+      step("simnet_proof_readiness", "Seed/refresh blocked proof readiness", hasProof ? "complete" : hasReview ? "available" : "blocked", hasProof ? "Simnet proof readiness session exists and remains blocked." : "Refresh proof readiness while release precondition remains blocked.", [], [], proofSession?.proofSessionId),
+    ];
+
+    return [
         ...commonOpeningSteps,
         step("arbiter_review_visibility", "Show arbiter review visibility", hasReview ? "complete" : hasEvidence ? "available" : "blocked", hasReview ? "Arbiter review case is visible." : "Open/link review-only arbiter case if needed.", eventIds(events, "arbiter_review_requested"), cases.map((reviewCase) => reviewCase.caseId)),
         step("simnet_proof_readiness", "Seed/refresh simnet proof readiness", hasProof ? "complete" : hasEvidence && hasReview ? "available" : "blocked", hasProof ? "Simnet proof readiness session exists." : "Refresh proof readiness from lifecycle, event, and review state.", [], [], proofSession?.proofSessionId),
       ];
+  })();
 
   return scenarioSteps.map((item, index, list) => {
     if (item.status !== "available") return item;
@@ -577,6 +679,10 @@ function disbursementScenario(record: HeadlessLoanLifecycleRecord): "valid_btc_s
   return "valid_usdc_supplier_disbursement";
 }
 
+function oracleHealthScenarioForType(scenarioType: GuidedOperatorDemoScenarioType): "healthy_loan" | "arbiter_review_case_opened" {
+  return scenarioType === "control_plane" ? "arbiter_review_case_opened" : "healthy_loan";
+}
+
 function railForAsset(asset: HeadlessLoanLifecycleRecord["borrowAsset"]): BorrowAssetRailNetwork {
   return asset === "BTC" ? "bitcoin_simnet" : "evm_local";
 }
@@ -587,6 +693,33 @@ function eventIds(events: HeadlessLifecycleEvent[], ...kinds: HeadlessLifecycleE
 
 function hasEventKind(events: HeadlessLifecycleEvent[], kind: HeadlessLifecycleEvent["kind"]): boolean {
   return events.some((event) => event.kind === kind);
+}
+
+function hasPartialRepaymentEvent(events: HeadlessLifecycleEvent[]): boolean {
+  return events.some((event) => event.kind === "repayment_observed" && event.payload.repaymentVerifierStatus === "valid_partial_repayment" && event.payload.integrityApplied !== false);
+}
+
+function hasFullRepaymentEvent(events: HeadlessLifecycleEvent[]): boolean {
+  return events.some((event) => event.kind === "repayment_observed" && event.payload.repaymentVerifierStatus === "valid_full_repayment" && event.payload.integrityApplied !== false);
+}
+
+function hasRepaymentDisputeEvent(events: HeadlessLifecycleEvent[]): boolean {
+  return events.some((event) => event.kind === "repayment_observed" && event.payload.integrityReview?.caseType === "repayment_dispute");
+}
+
+function scenarioNameForType(scenarioType: GuidedOperatorDemoScenarioType): string {
+  switch (scenarioType) {
+    case "repayment_release_readiness":
+      return "Repayment guided demo scenario";
+    case "partial_repayment_review":
+      return "Partial repayment review scenario";
+    case "repayment_dispute_review":
+      return "Repayment dispute review scenario";
+    case "top_up_review":
+      return "Top-up review scenario";
+    case "control_plane":
+      return "Guided operator demo scenario";
+  }
 }
 
 function borrowerSafeStatus(record: HeadlessLoanLifecycleRecord, proofSession?: SimnetProofSession): GuidedOperatorDemoScenario["borrowerSafeStatus"] {
@@ -621,8 +754,16 @@ function actionForStep(stepId: GuidedOperatorDemoStepId): string {
       return "Run the oracle/liquidation-health fixture.";
     case "evidence_timestamp_fixture":
       return "Run the evidence/timestamp placeholder fixture.";
+    case "partial_repayment_observed_fixture":
+      return "Run the partial repayment fixture event.";
     case "repayment_observed_fixture":
       return "Run the full repayment fixture event.";
+    case "repayment_dispute_fixture":
+      return "Run the repayment mismatch fixture event.";
+    case "repayment_dispute_review":
+      return "Open or show the repayment dispute review case.";
+    case "top_up_requested_fixture":
+      return "Run the top-up request fixture.";
     case "collateral_release_readiness_review":
       return "Mark release readiness for reviewed collateral release. Execution remains blocked.";
     case "arbiter_review_visibility":
@@ -645,7 +786,11 @@ function stepTimestamp(stepId: GuidedOperatorDemoStepId, now: string | undefined
     "borrow_asset_disbursement_fixture",
     "oracle_health_fixture",
     "evidence_timestamp_fixture",
+    "partial_repayment_observed_fixture",
     "repayment_observed_fixture",
+    "repayment_dispute_fixture",
+    "repayment_dispute_review",
+    "top_up_requested_fixture",
     "collateral_release_readiness_review",
     "arbiter_review_visibility",
     "simnet_proof_readiness",

@@ -8,6 +8,9 @@ It is fixture-only and review-only. It does not call live Decred, Bitcoin, EVM, 
 
 - `control_plane`: collateral, platform fee, supplier disbursement, health, evidence, arbiter visibility, and proof readiness refresh.
 - `repayment_release_readiness`: collateral, platform fee, supplier disbursement, health, evidence, full repayment observation, collateral release readiness review, and proof readiness refresh.
+- `partial_repayment_review`: collateral, platform fee, supplier disbursement, health, evidence, partial repayment observation, repayment review visibility, and blocked proof readiness refresh.
+- `repayment_dispute_review`: collateral, platform fee, supplier disbursement, health, evidence, repayment mismatch observation, repayment dispute review visibility, and blocked proof readiness refresh.
+- `top_up_review`: collateral, platform fee, supplier disbursement, health, evidence, top-up request warning, loan-health review visibility, and blocked proof readiness refresh.
 
 ## Repayment Flow
 
@@ -22,6 +25,32 @@ stored lifecycle record
 -> collateral release readiness review
 -> simnet proof readiness refresh
 -> broadcast remains blocked
+```
+
+## Exception Flows
+
+```text
+partial repayment preset
+-> normal setup fixtures
+-> partial repayment fixture
+-> repayment review visibility
+-> proof readiness remains blocked
+```
+
+```text
+repayment dispute preset
+-> normal setup fixtures
+-> repayment mismatch fixture
+-> repayment dispute review case
+-> proof readiness remains blocked
+```
+
+```text
+top-up review preset
+-> normal setup fixtures
+-> top-up request fixture
+-> loan-health/top-up review visibility
+-> proof readiness remains blocked
 ```
 
 ## Operator Surface
@@ -57,7 +86,10 @@ The panel has fixture/demo actions only:
 - Arbiter review uses the existing review-case path.
 - Simnet proof readiness uses the existing refresh helper.
 - Repayment observation uses the existing borrow-asset watcher fixture/lifecycle event path.
+- Partial repayment and repayment dispute presets use the existing borrow-asset watcher fixture/lifecycle event path.
+- Top-up review uses the existing oracle/liquidation-health fixture path with a deterministic guided-demo policy.
 - Collateral release readiness is review-only. It is not release execution.
+- Exception presets are review-only and intentionally leave collateral release and proof release preconditions blocked.
 - Borrower-facing status stays simple, such as `Loan setup in progress`, `Funds sent review in progress`, `Repayment review in progress`, `Release review in progress`, `Proof readiness review in progress`, or `Loan completed, release review pending`.
 - Broadcast stays blocked.
 
